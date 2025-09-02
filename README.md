@@ -14,7 +14,7 @@ Create switches, patch panels, wall ports, routers, etc. Assign ports, connect t
 You can open the app instantly here (hosted via GitHub Pages):  
 👉 [Ethernet Cable Connection Manager DEMO](https://bijomaru78.github.io/eccm/ECCM.html)
 
-Or download the HTML file and run it locally.
+Or download the zip from the releases page and run it locally.
 
 ## 📥 Download
 Grab the latest release here:  
@@ -28,4 +28,4 @@ If it saves you time or helps in your work, consider supporting development:
 
 ## 📜 License
 This project is licensed under the **GNU GPL-3.0**.  
-You are free to use, modify, and redistribute it, but if you distribute changes you must also provide the source code under the same license.
+You are free to use, modify, and redistribute it, but if you distribute changes, you must also provide the source code under the same license.
