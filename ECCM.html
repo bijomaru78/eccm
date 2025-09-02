@@ -289,26 +289,28 @@ function el(tag, attrs){
 function deviceById(id){ for(var i=0;i<state.devices.length;i++){ if(state.devices[i].id===id) return state.devices[i]; } return null; }
 function indexById(id){ return state.devices.findIndex(function(d){return d.id===id;}); }
 function linkForPort(deviceId, port, sub){
-  for(var i=0;i<state.links.length;i++){
+  for (var i=0;i<state.links.length;i++){
     var L = state.links[i];
-    if((L.a.deviceId===deviceId && L.a.port===port && (L.a.sub||null)=== (sub||null)) ||
-       (L.b.deviceId===deviceId && L.b.port===port && (L.b.sub||null)=== (sub||null))) return L;
+    if ((L.a.deviceId===deviceId && L.a.port===port && (L.a.sub||null)===(sub||null)) ||
+        (L.b.deviceId===deviceId && L.b.port===port && (L.b.sub||null)===(sub||null))) {
+      return L;
+    }
   }
   return null;
 }
-
+	
 function keyFor(deviceId, port, sub){
   return deviceId + ':' + port + ':' + (sub==null ? '' : sub);
 }
 function aliasFor(deviceId, port, sub){
   return state.portAliases[keyFor(deviceId,port,sub)] || '';
 }
+	
 function getPeer(deviceId, port, sub){
   var L = linkForPort(deviceId, port, sub); if(!L) return null;
   if (L.a.deviceId===deviceId && L.a.port===port && (L.a.sub||null)===(sub||null)) return L.b;
   return L.a;
 }
-
 
 /* ========= COLOUR / SELECTION ========= */
 function hexToRgb(hex){ var h = String(hex||'').replace('#','').trim(); if (h.length===3) h = h.split('').map(function(c){return c+c}).join(''); var n = parseInt(h,16); if (isNaN(n)||h.length!==6) return {r:15,g:20,b:29}; return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 }; }
@@ -380,9 +382,13 @@ var pendingPort = null;
 var highlightedLinkId = null;
 
 function connectPorts(a,b){
-  if (linkForPort(a.deviceId,a.port) || linkForPort(b.deviceId,b.port)) return false;
-  var id = uid(); state.links.push({ id:id, a:a, b:b }); saveStore(); render(); highlightLink(id); return true;
+  if (linkForPort(a.deviceId,a.port,a.sub) || linkForPort(b.deviceId,b.port,b.sub)) return false;
+  var id = uid();
+  state.links.push({ id:id, a:a, b:b });
+  saveStore(); render(); highlightLink(id);
+  return true;
 }
+
 function unlink(linkId){
   state.links = state.links.filter(function(L){ return L.id!==linkId; });
   if(highlightedLinkId===linkId) highlightedLinkId=null;
@@ -431,6 +437,92 @@ function renderDeviceWrap(d, fullWidth){
     var item = state.devices.splice(from,1)[0]; if (from < to) to -= 1; state.devices.splice(to,0,item); 
     saveStore(); render();
   });
+
+// inside renderDeviceWrap, before building rows:
+function createSubPort(d, p, sub){
+  var linked = !!linkForPort(d.id, p, sub);
+  var peer = linked ? getPeer(d.id,p,sub) : null;
+  var peerDev = peer ? deviceById(peer.deviceId) : null;
+  var peerPort = peer ? peer.port : null;
+  var alias = aliasFor(d.id,p,sub);
+
+  var node = el('div',{
+      class:'port'+(linked?' connected':''), 
+      dataset:{deviceId:d.id, port:p, sub:(sub==null?undefined:sub)}
+    },
+    el('div',{class:'tip'}, linked?'⇄':'+'),
+    el('div',{class:'num'}, 'Port '+p+(sub!=null ? '/'+(sub+1) : '')),
+    el('div',{class:'alias'}, alias||''),
+    el('div',{class:'peer'}, peerPort?String(peerPort):'')
+  );
+
+  if (linked && peerDev) paintPortBase(node, peerDev.color || '#22354a');
+  else paintPortBase(node, '#0f141d');
+
+  node.addEventListener('click', function(ev){
+    if (ev.altKey){
+      var curr = aliasFor(d.id,p,sub);
+      var next = prompt('Optional port label (blank to clear):', curr||'');
+      if(next===null) return;
+      var k = keyFor(d.id,p,sub);
+      if(!next.trim()) delete state.portAliases[k]; else state.portAliases[k] = next.trim();
+      saveStore(); render(); return;
+    }
+    if (linkForPort(d.id, p, sub)) {
+      clearSelectionOutlines();
+      var L1 = linkForPort(d.id, p, sub);
+      highlightLink(L1.id, { from:{deviceId:d.id, port:p, sub:sub} });
+      pendingPort = null; return;
+    }
+    if (!pendingPort){
+      pendingPort = {deviceId:d.id, port:p, sub:sub};
+      clearSelectionOutlines(); outlineForSelection(node, true);
+      highlightedLinkId = null; applyRowHighlight();
+      return;
+    }
+    if (linkForPort(d.id, p, sub) || linkForPort(pendingPort.deviceId, pendingPort.port, pendingPort.sub)){
+      alert('This port (or the previously selected one) is already linked. Unlink first.');
+      pendingPort = null; clearSelectionOutlines(); highlightLink(null); return;
+    }
+    var devA = deviceById(pendingPort.deviceId);
+    var devB = deviceById(d.id);
+    var msg = 'Create link:\n' + (devA?devA.name:'A') + ' Port ' + pendingPort.port + (pendingPort.sub!=null?'/'+(pendingPort.sub+1):'')
+              + ' ⇄ ' + (devB?devB.name:'B') + ' Port ' + p + (sub!=null?'/'+(sub+1):'');
+    if (!confirm(msg)){ pendingPort = null; clearSelectionOutlines(); return; }
+    var ok = connectPorts(pendingPort, {deviceId:d.id, port:p, sub:sub});
+    pendingPort = null;
+    if (!ok){ alert('Could not connect.'); clearSelectionOutlines(); highlightLink(null); }
+  });
+
+  return node;
+}
+
+function renderPortCell(d, p){
+  if (!d.dualLink) return createSubPort(d, p, null);
+  // Dual-link wrapper (ONE grid cell)
+  var wrapCell = document.createElement('div');
+  wrapCell.style.display = 'flex';
+  wrapCell.style.flexDirection = 'column';
+  wrapCell.style.border = '1px solid var(--line)';
+  wrapCell.style.borderRadius = '10px';
+  wrapCell.style.overflow = 'hidden';
+  wrapCell.style.background = 'transparent';
+
+  var top = createSubPort(d, p, 0);
+  top.style.border = '0'; top.style.borderRadius = '0';
+  var bottom = createSubPort(d, p, 1);
+  bottom.style.border = '0'; bottom.style.borderTop = '1px solid var(--line)'; bottom.style.borderRadius = '0';
+
+  wrapCell.appendChild(top); wrapCell.appendChild(bottom);
+  return wrapCell;
+}
+
+// when building each row:
+for (var i=0;i<count;i++){
+  var p = nextPortNum++;
+  row.appendChild(renderPortCell(d, p));
+}
+
 
   var head = el('div',{class:'device-head'},
     el('div',{class:'device-title'},
@@ -638,16 +730,21 @@ function highlightLink(linkId, opts){
   highlightedLinkId = linkId; applyRowHighlight(); clearSelectionOutlines();
   if (!linkId) return;
   var L = state.links.find(function(x){ return x.id===linkId; }); if (!L) return;
-  var portA = document.querySelector('.port[data-device-id="'+L.a.deviceId+'"][data-port="'+L.a.port+'"]');
-  var portB = document.querySelector('.port[data-device-id="'+L.b.deviceId+'"][data-port="'+L.b.port+'"]');
+  function sel(ep){
+    var s = '.port[data-device-id="'+ep.deviceId+'"][data-port="'+ep.port+'"]';
+    if (ep.sub!=null) s += '[data-sub="'+ep.sub+'"]';
+    return s;
+  }
+  var portA = document.querySelector(sel(L.a));
+  var portB = document.querySelector(sel(L.b));
   if (portA) outlineForSelection(portA);
   if (portB) outlineForSelection(portB);
   if (opts && opts.from){
-    var originSel = '.port[data-device-id="'+opts.from.deviceId+'"][data-port="'+opts.from.port+'"]';
-    var origin = document.querySelector(originSel);
+    var origin = document.querySelector(sel(opts.from));
     if (origin){ var border = bestTextColorFor(origin.style.background || '#0f141d'); origin.style.outline = '5px solid ' + border; }
   }
 }
+
 
 /* ========= PRINT ========= */
 function openPrintSheet(includeTable){
