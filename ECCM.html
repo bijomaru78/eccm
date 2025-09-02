@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ethernet Cable Connection Manager</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --ink:#e8eaf1; --muted:#a6adbb; --line:#262a33; --accent:#7cc4ff; --portGap:8px; --portW:60px; }
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  *,*::before,*::after{box-sizing:border-box}
+  header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:linear-gradient(180deg,#12151b,#10131a)}
+  header h1{font-size:18px;margin:0;font-weight:650}
+  .badge{color:var(--muted);font-size:12px;border:1px solid var(--line);padding:2px 8px;border-radius:999px}
+
+  .wrap{position:relative;display:grid;grid-template-columns:340px 1fr;gap:16px;height:calc(100% - 62px)}
+  @media (max-width:1024px){.wrap{grid-template-columns:1fr;height:auto}}
+  aside,main{padding:16px}
+  aside{border-right:1px solid var(--line);background:var(--panel)}
+  main{overflow:auto;position:relative}
+
+  .card{background:#141821;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+  .card h3{margin:0 0 8px 0;font-size:14px;font-weight:650}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+  input[type=text],input[type=number]{width:100%;max-width:100%;background:#0f131b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
+  button,.btn{background:#11151d;color:var(--ink);border:1px solid var(--line);padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:600}
+  button:hover{border-color:#2a2f3b}
+  .btn-danger{border-color:#3b2222}
+  .muted{color:var(--muted)} .small{font-size:12px}
+  .mini{padding:4px 8px;font-size:12px;border-radius:6px}
+
+  /* Devices layout (two-column grid) */
+  .dev-rows{display:flex;flex-direction:column;gap:12px}
+  .dev-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .device-wrap{display:block;width:100%}
+  .device-wrap.full{grid-column:1 / -1}
+
+  .device{background:#131722;border:1px solid var(--line);border-radius:12px;padding:12px;position:relative;width:100%}
+  .device-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .device-title{font-size:15px;font-weight:650;display:flex;align-items:center;gap:8px}
+  .swatch{width:12px;height:12px;border-radius:3px;border:1px solid #0006;display:inline-block}
+  .device-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .meta .inline-controls{margin-left:8px;display:inline-flex;gap:6px}
+
+  /* Ports */
+  .ports-rows{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .port-row{display:grid;gap:var(--portGap)}
+  .port{position:relative;border:1px solid var(--line);background:#0f141d;border-radius:10px;padding:8px 6px 6px;cursor:pointer;text-align:center;user-select:none;transition:background .12s}
+  .port .num{font-size:12px}
+  .port .alias{font-size:11px;margin-top:2px;min-height:1.2em}
+  .port .peer{margin-top:4px;font-size:12px;font-weight:700;min-height:1.4em}
+  .port .tip{position:absolute;top:6px;right:6px;font-size:10px;color:#7a8191}
+  .port.selected{outline-offset:2px}
+
+  /* Connections table */
+  .grid-slim{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .grid-slim th,.grid-slim td{font-size:13px;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  .grid-slim th{background:#121722;color:var(--muted);font-weight:600}
+  .conn-row.highlight td{background:#0f1522}
+
+  /* Colour picker */
+  .color-picker-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .swatch-lg{width:24px;height:24px;border-radius:6px;border:1px solid #0006;display:inline-block}
+  .color-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:#0f141d;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:600;color:var(--ink)}
+  .color-btn:hover{border-color:#2a2f3b}
+  .palette-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
+  .palette{background:#141821;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:280px;max-width:90vw}
+  .palette h4{margin:0 0 10px 0;font-size:14px}
+  .palette-grid{display:grid;grid-template-columns:repeat(6, 36px);gap:8px;justify-content:center}
+  .chip{width:36px;height:36px;border-radius:8px;border:1px solid rgba(0,0,0,.35);cursor:pointer}
+  .palette .actions{display:flex;justify-content:flex-end;margin-top:12px}
+
+  /* Layout modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:60}
+  .modal{background:#141821;border:1px solid var(--line);border-radius:12px;padding:14px;min-width:300px;max-width:90vw}
+  .modal h4{margin:0 0 10px 0;font-size:14px}
+  .modal .row{display:flex;gap:8px;align-items:center;margin:6px 0}
+  .modal label{margin:0;color:var(--ink);font-size:13px}
+  .modal select{background:#0f131b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+  .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Ethernet Cable Connection Manager</h1>
+  <span class="badge">Offline • LocalStorage • JSON import/export • Print</span>
+  <div style="margin-left:auto;display:flex;gap:8px"><button id="printSheet">Print layout</button></div>
+</header>
+
+<div class="wrap">
+  <aside>
+    <div class="card">
+      <h3>Add device</h3>
+      <label for="devName">Name</label>
+      <input id="devName" type="text" placeholder="e.g. Core Switch A" />
+      <div class="row">
+        <div>
+          <label for="devPorts">Ports</label>
+          <input id="devPorts" type="number" inputmode="numeric" min="1" max="512" value="24" />
+        </div>
+      </div>
+      <label>Colour</label>
+      <div class="color-picker-row">
+        <button type="button" class="color-btn" id="openPalette">Select colour</button>
+        <span id="devColorPreview" class="swatch swatch-lg" title="Selected colour"></span>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button id="addBtn">Add device</button>
+        <button id="clearAll" class="btn-danger" title="Delete everything">Clear all</button>
+      </div>
+      <div class="small" style="margin-top:6px">
+        Click two free ports to connect • <strong>Unlink</strong> in Connections • <span class="muted">Alt-click</span> a port to set an alias
+      </div>
+    </div>
+
+	<div class="card">
+	  <h3>Export / Import</h3>
+	  <div style="display:flex;gap:8px;flex-wrap:wrap">
+		<button id="exportJson">Export JSON</button>
+		<button id="importJsonBtn">Import JSON</button>
+		<input id="importFile" type="file" accept=".json,application/json" style="display:none">
+	  </div>
+	  <div class="small muted">
+		Auto-saves to LocalStorage key
+		<span class="swatch" style="width:auto;height:auto;border:none">ethcm_v12</span>.
+	  </div>
+	</div>
+
+    <div class="card">
+      <h3>Find connection</h3>
+      <input id="searchBox" type="text" placeholder="Filter by device or port…" />
+      <div class="small muted">Filters the table below.</div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="card">
+      <h3>Devices</h3>
+      <div id="devRows" class="dev-rows"></div>
+    </div>
+
+    <div class="card">
+      <h3>Connections</h3>
+      <table class="grid-slim" id="connTable">
+        <thead><tr><th>#</th><th>Device A</th><th>Port</th><th>Alias</th><th>⇄</th><th>Device B</th><th>Port</th><th>Alias</th><th></th></tr></thead>
+        <tbody id="connBody"></tbody>
+      </table>
+      <div class="small muted">Click a row (or a connected port) to highlight both ends.</div>
+    </div>
+  </main>
+</div>
+
+<!-- Palette -->
+<div class="palette-backdrop" id="paletteModal">
+  <div class="palette" role="dialog" aria-modal="true" aria-labelledby="paletteTitle">
+    <h4 id="paletteTitle">Select colour</h4>
+    <div class="palette-grid" id="paletteGrid"></div>
+    <div class="actions"><button type="button" id="paletteClose">Close</button></div>
+  </div>
+</div>
+
+<!-- Layout modal -->
+<div class="modal-backdrop" id="layoutModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="layoutTitle">
+    <h4 id="layoutTitle">Device layout options</h4>
+    <div class="row"><label style="min-width:110px">Device</label><span id="layoutDeviceName" class="small muted"></span></div>
+    <div class="row">
+      <label style="min-width:110px">Row width</label>
+      <select id="layoutFullRow">
+        <option value="auto">Auto (follow rules)</option>
+        <option value="full">Force full row</option>
+      </select>
+    </div>
+    <div class="row" id="optMidWrap">
+      <label style="min-width:110px">13–24 ports</label>
+      <select id="layoutMidWrap">
+        <option value="balanced">Balanced (½ + ½)</option>
+        <option value="twelve">12 + remainder</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button type="button" id="layoutCancel">Cancel</button>
+      <button type="button" id="layoutSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== State ===== */
+var LS_KEY = 'ethcm_v12';
+function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+function uid(){ return 'id_' + Math.random().toString(36).slice(2,10); }
+var defaultState = { devices: [], links: [], portAliases: {} };
+var state = (function(){
+  try{
+    var raw = localStorage.getItem(LS_KEY);
+    if(!raw) return deepClone(defaultState);
+    var parsed = JSON.parse(raw);
+    if(!parsed.devices || !parsed.links) return deepClone(defaultState);
+    parsed.portAliases = parsed.portAliases || {};
+    parsed.devices.forEach(function(d){
+      if (d.forceFullRow === undefined) d.forceFullRow = false;
+      if (d.midWrapMode === undefined) d.midWrapMode = 'balanced';
+    });
+    return parsed;
+  }catch(e){ return deepClone(defaultState); }
+})();
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+
+/* ===== Helpers ===== */
+function $(s){ return document.querySelector(s); }
+function $all(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
+function el(tag, attrs){
+  var node = document.createElement(tag); attrs = attrs||{};
+  Object.keys(attrs).forEach(function(k){
+    var v = attrs[k];
+    if(k === 'dataset'){ Object.keys(v).forEach(function(dk){ node.dataset[dk] = v[dk]; }); }
+    else if(k === 'class'){ node.className = v; }
+    else if(k.indexOf('on') === 0 && typeof v === 'function'){ node.addEventListener(k.slice(2), v); }
+    else { node.setAttribute(k, v); }
+  });
+  for(var i=2;i<arguments.length;i++){ var c = arguments[i]; if(c==null) continue; node.appendChild(c.nodeType ? c : document.createTextNode(c)); }
+  return node;
+}
+function deviceById(id){ for(var i=0;i<state.devices.length;i++){ if(state.devices[i].id===id) return state.devices[i]; } return null; }
+function indexById(id){ return state.devices.findIndex(function(d){return d.id===id;}); }
+function linkForPort(deviceId, port){
+  for(var i=0;i<state.links.length;i++){
+    var L = state.links[i];
+    if((L.a.deviceId===deviceId && L.a.port===port) || (L.b.deviceId===deviceId && L.b.port===port)) return L;
+  }
+  return null;
+}
+function keyFor(deviceId, port){ return deviceId + ':' + port; }
+function aliasFor(deviceId, port){ return state.portAliases[keyFor(deviceId,port)] || ''; }
+function getPeer(deviceId, port){
+  var L = linkForPort(deviceId, port); if(!L) return null;
+  return (L.a.deviceId===deviceId && L.a.port===port) ? L.b : L.a;
+}
+
+/* ===== Colour / contrast ===== */
+function hexToRgb(hex){
+  var h = String(hex||'').replace('#','').trim();
+  if (h.length===3) h = h.split('').map(function(c){return c+c}).join('');
+  var n = parseInt(h,16);
+  if (isNaN(n) || h.length!==6) return {r:15,g:20,b:29};
+  return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+}
+function bestTextColorFor(bgHex){
+  var c = hexToRgb(bgHex);
+  var L = 0.2126*(c.r/255) + 0.7152*(c.g/255) + 0.0722*(c.b/255);
+  return (L > 0.6) ? '#000' : '#fff';
+}
+function paintPortBase(node, bgHex){
+  var bg = bgHex || '#0f141d';
+  node.style.background = bg;
+  var txt = bestTextColorFor(bg);
+  node.style.color = txt;
+  var alias = node.querySelector('.alias'); if (alias) alias.style.color = txt;
+  var num   = node.querySelector('.num');   if (num)   num.style.color   = txt;
+  var peer  = node.querySelector('.peer');  if (peer)  peer.style.color  = txt;
+}
+function clearSelectionOutlines(){
+  document.querySelectorAll('.port.selected').forEach(function(n){
+    n.classList.remove('selected'); n.style.outline = 'none';
+  });
+}
+function outlineForSelection(node, thick){
+  var bg = node.style.background || '#0f141d';
+  var border = bestTextColorFor(bg);
+  node.classList.add('selected'); node.style.outline = (thick ? '5px' : '3px') + ' solid ' + border;
+}
+
+/* ===== Port width calibration ===== */
+function updateUniformPortWidth(){
+  var rowsHost = document.getElementById('devRows');
+  if(!rowsHost){ return; }
+  var rect = rowsHost.getBoundingClientRect();
+  var fullWidth = rect.width;
+  var gap = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--portGap')) || 8;
+  var totalGaps = 11 * gap;
+  var portW = Math.max(52, Math.floor((fullWidth - totalGaps) / 12));
+  document.documentElement.style.setProperty('--portW', portW + 'px');
+}
+var __pw_timer=null;
+window.addEventListener('resize', function(){ clearTimeout(__pw_timer); __pw_timer=setTimeout(function(){ updateUniformPortWidth(); }, 60); });
+
+/* ===== Layout helpers ===== */
+function isFullWidthDevice(d){
+  if (d.forceFullRow) return true;
+  if ((d.ports||1) >= 7) return true; // 7–11 full row; 12+ full row
+  return false; // 1–6 half row
+}
+function splitPortsIntoRows(n, dev){
+  if (n >= 12){
+    if (n <= 24 && dev.midWrapMode === 'balanced'){
+      var a = Math.ceil(n/2); return [Math.min(12,a), Math.min(12,n-a)];
+    }
+    var rows=[], rem=n; while(rem>0){ rows.push(Math.min(12, rem)); rem -= 12; } return rows;
+  }
+  if (n >= 7) return [n];
+  return [n];
+}
+
+/* ===== Connect / Unlink ===== */
+var pendingPort = null;
+var highlightedLinkId = null;
+
+function connectPorts(a, b){
+  if (linkForPort(a.deviceId, a.port) || linkForPort(b.deviceId, b.port)) return false;
+  var id = uid();
+  state.links.push({ id:id, a:a, b:b });
+  save(); render(); highlightLink(id);
+  return true;
+}
+function unlink(linkId){
+  state.links = state.links.filter(function(L){ return L.id!==linkId; });
+  if(highlightedLinkId===linkId) highlightedLinkId=null;
+  save(); render();
+}
+
+/* ===== Render devices ===== */
+function renderDevices(){
+  var host = $('#devRows'); host.innerHTML = '';
+  if(!state.devices.length){ host.appendChild(el('div',{class:'muted'},'No devices yet — add one on the left.')); updateUniformPortWidth(); return; }
+
+  var i=0;
+  while(i < state.devices.length){
+    var rowEl = el('div',{class:'dev-row'});
+    var d = state.devices[i];
+
+    if (isFullWidthDevice(d)){
+      rowEl.appendChild(renderDeviceWrap(d, true));
+      i += 1;
+    } else {
+      rowEl.appendChild(renderDeviceWrap(d, false));
+      if (i+1 < state.devices.length && !isFullWidthDevice(state.devices[i+1])){
+        rowEl.appendChild(renderDeviceWrap(state.devices[i+1], false));
+        i += 2;
+      } else {
+        rowEl.appendChild(el('div',{class:'device-wrap'}, el('div',{class:'device', style:'visibility:hidden'}, ' ')));
+        i += 1;
+      }
+    }
+    host.appendChild(rowEl);
+  }
+  updateUniformPortWidth();
+}
+
+/* Build device card */
+function renderDeviceWrap(d, fullWidth){
+  var wrap = el('div',{class:'device-wrap ' + (fullWidth ? 'full' : ''), dataset:{id:d.id}}); wrap.draggable = true;
+
+  // DnD reorder
+  wrap.addEventListener('dragstart', function(e){ wrap.classList.add('dragging'); e.dataTransfer.setData('text/plain', d.id); e.dataTransfer.effectAllowed='move'; });
+  wrap.addEventListener('dragend', function(){ wrap.classList.remove('dragging'); });
+  wrap.addEventListener('dragover', function(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; });
+  wrap.addEventListener('drop', function(e){
+    e.preventDefault();
+    var draggedId = e.dataTransfer.getData('text/plain'); if (!draggedId || draggedId === d.id) return;
+    var from = indexById(draggedId), to = indexById(d.id); if (from<0 || to<0) return;
+    var item = state.devices.splice(from,1)[0];
+    if (from < to) to -= 1;
+    state.devices.splice(to,0,item); save(); render();
+  });
+
+  // Card head + actions
+  var head = el('div',{class:'device-head'},
+    el('div',{class:'device-title'},
+      el('span',{class:'swatch', style:'background:'+(d.color||'#888')}),
+      document.createTextNode(d.name||'Unnamed')
+    ),
+    el('div',{class:'device-actions'},
+      el('button',{title:'Layout options', onclick:function(ev){ ev.stopPropagation(); openLayoutModal(d.id); }}, 'Layout'),
+      el('button',{title:'Edit', onclick:function(ev){
+        ev.stopPropagation();
+        var newName = prompt('Device name:', d.name||''); if(newName==null || !newName.trim()) return;
+        var np = prompt('Number of ports (>=1):', String(d.ports||1)); if(np==null) return;
+        changePorts(d, Math.max(1, Math.min(512, Number(np)||1)));
+        d.name = newName.trim();
+        var newColor = prompt('Hex colour (e.g. #E74C3C):', d.color||'#888'); if(newColor) d.color = newColor;
+        save(); render();
+      }}, 'Edit'),
+      el('button',{class:'btn-danger',title:'Delete', onclick:function(ev){
+        ev.stopPropagation();
+        if(!confirm('Delete "'+(d.name||'Unnamed')+'" and its links?')) return;
+        state.links = state.links.filter(function(L){ return String(L.a.deviceId)!==String(d.id) && String(L.b.deviceId)!==String(d.id); });
+        state.devices = state.devices.filter(function(x){ return String(x.id)!==String(d.id); });
+        Object.keys(state.portAliases).forEach(function(k){ if(k.split(':')[0]===String(d.id)) delete state.portAliases[k]; });
+        save(); render();
+      }}, 'Delete')
+    )
+  );
+
+  var meta = el('div',{class:'meta'},
+    document.createTextNode((d.ports||1)+' ports'),
+    (function(){
+      var c = el('span',{class:'inline-controls'},
+        el('button',{class:'mini', title:'Add one port', onclick:function(e){ e.stopPropagation(); changePorts(d, (d.ports||1)+1); save(); render(); }}, '+ Port'),
+        el('button',{class:'mini', title:'Remove one port', onclick:function(e){ e.stopPropagation(); if ((d.ports||1) <= 1) return; changePorts(d, (d.ports||1)-1); save(); render(); }}, '– Port')
+      ); return c;
+    })()
+  );
+
+  var portsContainer = el('div',{class:'ports-rows'});
+  var rows = splitPortsIntoRows(d.ports||1, d);
+  var nextPortNum = 1;
+
+  rows.forEach(function(count){
+    var row = el('div',{class:'port-row'});
+    row.style.gridTemplateColumns = fullWidth ? 'repeat(12, var(--portW))' : 'repeat(6, var(--portW))';
+
+    for (var i=0;i<count;i++){
+      var p = nextPortNum++;
+      var linked = !!linkForPort(d.id, p);
+      var peer = linked ? getPeer(d.id,p) : null;
+      var peerDev = peer ? deviceById(peer.deviceId) : null;
+      var peerPort = peer ? peer.port : null;
+      var alias = aliasFor(d.id,p);
+
+      (function(p, linked, peerDev, peerPort){
+        var node = el('div',{class:'port'+(linked?' connected':''), dataset:{deviceId:d.id, port:p}},
+          el('div',{class:'tip'}, linked?'⇄':'+'),
+          el('div',{class:'num'}, 'Port '+p),
+          el('div',{class:'alias'}, alias||''),
+          el('div',{class:'peer'}, peerPort?String(peerPort):'')
+        );
+
+        if (linked && peerDev) paintPortBase(node, peerDev.color || '#22354a');
+        else paintPortBase(node, '#0f141d');
+
+        node.addEventListener('click', function(ev){
+          var isAlt = ev.altKey;
+          if (isAlt){
+            var curr = aliasFor(d.id,p);
+            var next = prompt('Optional port label (blank to clear):', curr||'');
+            if(next===null) return;
+            var k = keyFor(d.id,p);
+            if(!next.trim()) delete state.portAliases[k]; else state.portAliases[k] = next.trim();
+            save(); render(); return;
+          }
+          if (linkForPort(d.id, p)) {
+            clearSelectionOutlines();
+            var L1 = linkForPort(d.id, p);
+            highlightLink(L1.id, { from:{deviceId:d.id, port:p} });
+            pendingPort = null; return;
+          }
+          if (!pendingPort){
+            pendingPort = {deviceId:d.id, port:p};
+            clearSelectionOutlines(); outlineForSelection(node, true);
+            highlightedLinkId = null; applyRowHighlight();
+            return;
+          }
+          if (linkForPort(d.id, p) || linkForPort(pendingPort.deviceId, pendingPort.port)){
+            alert('This port (or the previously selected one) is already linked. Unlink it in the Connections list first.');
+            pendingPort = null; clearSelectionOutlines(); highlightLink(null); return;
+          }
+          var devA = deviceById(pendingPort.deviceId);
+          var devB = deviceById(d.id);
+          var aliasA = aliasFor(pendingPort.deviceId, pendingPort.port);
+          var aliasB = aliasFor(d.id, p);
+          var portA_label = 'Port ' + pendingPort.port + (aliasA ? ' (' + aliasA + ')' : '');
+          var portB_label = 'Port ' + p + (aliasB ? ' (' + aliasB + ')' : '');
+          var msg = 'Create link:\n' + (devA?devA.name:'Device A') + ' : ' + portA_label + '  ⇄  ' + (devB?devB.name:'Device B') + ' : ' + portB_label + ' ?';
+          if (!confirm(msg)){ pendingPort = null; clearSelectionOutlines(); return; }
+          var target = {deviceId:d.id, port:p};
+          var ok = connectPorts(pendingPort, target);
+          pendingPort = null;
+          if (!ok){ alert('Could not connect: one of the ports is already linked.'); clearSelectionOutlines(); highlightLink(null); }
+        });
+
+        row.appendChild(node);
+      })(p, linked, peerDev, peerPort);
+    }
+
+    portsContainer.appendChild(row);
+  });
+
+  var card = el('div',{class:'device', id:'dev-'+d.id}, head, meta, portsContainer);
+  wrap.appendChild(card);
+  return wrap;
+}
+
+/* Change port count safely */
+function changePorts(d, newCount){
+  newCount = Math.max(1, Math.min(512, Number(newCount)||1));
+  if (newCount === d.ports) return;
+  if (newCount < d.ports){
+    state.links = state.links.filter(function(L){
+      var aOk = !(L.a.deviceId===d.id && L.a.port>newCount);
+      var bOk = !(L.b.deviceId===d.id && L.b.port>newCount);
+      return aOk && bOk;
+    });
+    Object.keys(state.portAliases).forEach(function(k){
+      var parts = k.split(':'); if(parts[0]===d.id && Number(parts[1])>newCount) delete state.portAliases[k];
+    });
+  }
+  d.ports = newCount;
+}
+
+/* Connections table */
+function renderConnections(){
+  var tb = $('#connBody'); tb.innerHTML='';
+  var q = ($('#searchBox').value||'').toLowerCase().trim();
+  var rows = [];
+  state.links.forEach(function(L, i){
+    var da = deviceById(L.a.deviceId), db = deviceById(L.b.deviceId);
+    var aName = (da&&da.name)||'Unknown', bName = (db&&db.name)||'Unknown';
+    var aAlias = aliasFor(L.a.deviceId,L.a.port), bAlias = aliasFor(L.b.deviceId,L.b.port);
+    var text = (aName+' '+L.a.port+' '+bName+' '+L.b.port+' '+aAlias+' '+bAlias).toLowerCase();
+    if(q && text.indexOf(q)===-1) return;
+    var tr = el('tr',{class:'conn-row', dataset:{linkId:L.id}},
+      el('td',{}, String(i+1)),
+      el('td',{}, aName),
+      el('td',{}, 'Port '+L.a.port),
+      el('td',{}, aAlias),
+      el('td',{}, '⇄'),
+      el('td',{}, bName),
+      el('td',{}, 'Port '+L.b.port),
+      el('td',{}, bAlias),
+      el('td',{}, el('button',{class:'btn-danger',onclick:function(){ unlink(L.id); }},'Unlink'))
+    );
+    tr.addEventListener('click', function(e){
+      if(e.target.tagName.toLowerCase()==='button') return;
+      highlightLink(L.id);
+      var portA = document.querySelector('.port[data-device-id="'+L.a.deviceId+'"][data-port="'+L.a.port+'"]');
+      var portB = document.querySelector('.port[data-device-id="'+L.b.deviceId+'"][data-port="'+L.b.port+'"]');
+      clearSelectionOutlines(); if(portA) outlineForSelection(portA); if(portB) outlineForSelection(portB);
+    });
+    rows.push(tr);
+  });
+  if(!rows.length){
+    tb.appendChild(el('tr',{}, el('td',{colspan:'9',class:'muted'},'No connections found.')));
+  } else rows.forEach(function(r){ tb.appendChild(r); });
+  applyRowHighlight();
+}
+
+/* Row highlight helpers */
+function applyRowHighlight(){
+  $all('.conn-row').forEach(function(r){
+    if(highlightedLinkId && r.dataset.linkId===highlightedLinkId) r.classList.add('highlight');
+    else r.classList.remove('highlight');
+  });
+}
+function highlightLink(linkId, opts){
+  highlightedLinkId = linkId; applyRowHighlight(); clearSelectionOutlines();
+  if (!linkId) return;
+  var L = state.links.find(function(x){ return x.id===linkId; }); if (!L) return;
+  var portA = document.querySelector('.port[data-device-id="'+L.a.deviceId+'"][data-port="'+L.a.port+'"]');
+  var portB = document.querySelector('.port[data-device-id="'+L.b.deviceId+'"][data-port="'+L.b.port+'"]');
+  if (portA) outlineForSelection(portA);
+  if (portB) outlineForSelection(portB);
+  if (opts && opts.from){
+    var originSel = '.port[data-device-id="'+opts.from.deviceId+'"][data-port="'+opts.from.port+'"]';
+    var origin = document.querySelector(originSel);
+    if (origin){
+      var border = bestTextColorFor(origin.style.background || '#0f141d');
+      origin.style.outline = '5px solid ' + border;
+    }
+  }
+}
+
+/* Print (clone layout + table; no backticks) */
+/* Print (no backticks) — clones the live layout + table */
+function openPrintSheet(includeTable){
+  var devicesHTML = document.getElementById('devRows').innerHTML;
+  var tableEl = document.getElementById('connTable');
+  var tableHTML = (includeTable && tableEl) ? tableEl.outerHTML : '';
+  var when = new Date().toLocaleString();
+
+  var css = ''
+  + ':root{--ink:#111;--line:#ddd;--portGap:8px;--portW:60px}\n'
+  + '*{box-sizing:border-box}\n'
+  + 'body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:#fff;margin:16px}\n'
+  + 'header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}\n'
+  + 'h1{font-size:18px;margin:0}\n'
+  + '.meta{font-size:12px;color:#555}\n'
+  + '.dev-rows{display:flex;flex-direction:column;gap:12px}\n'
+  + '.dev-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}\n'
+  + '.device-wrap{width:100%}\n'
+  + '.device-wrap.full{grid-column:1 / -1}\n'
+  + '.device{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px}\n'
+  + '.device-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}\n'
+  + '.device-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}\n'
+  + '.device-actions{display:none!important}\n'
+  + '.inline-controls{display:none!important}\n' /* hide +/– port in print */
+  + '.swatch{width:12px;height:12px;border-radius:3px;border:1px solid #0003;display:inline-block}\n'
+  + '.ports-rows{display:flex;flex-direction:column;gap:8px;margin-top:10px}\n'
+  + '.port-row{display:grid;gap:var(--portGap)}\n'
+  + '.port{border:1px solid var(--line);border-radius:8px;padding:6px 6px 4px;text-align:center}\n'
+  + '.port .tip{display:none}\n'
+  + '.port .num{font-size:12px;font-weight:600}\n'
+  + '.port .alias{font-size:11px;margin-top:2px;min-height:1.1em}\n'
+  + '.port .peer{font-size:12px;font-weight:700;margin-top:4px;min-height:1.2em}\n'
+  + 'table{width:100%;border-collapse:collapse;margin-top:16px}\n'
+  + 'th,td{border:1px solid var(--line);padding:6px 8px;font-size:12px;text-align:left}\n'
+  + 'th{background:#f6f7f9;font-weight:700}\n'
+  + 'th:last-child, td:last-child{display:none}\n' /* hide Unlink column */
+  + '@media print{.controls{display:none}body{margin:0;padding:16px}}\n';
+
+  var html = ''
+  + '<!doctype html><html><head><meta charset="utf-8">'
+  + '<title>Port Map – Print</title><style>' + css + '</style></head><body>'
+  + '<header><h1>Ethernet Port Map</h1><div class="meta">' + when + '</div></header>'
+  + '<section id="printDevices" class="dev-rows">' + devicesHTML + '</section>'
+  + (tableHTML ? '<h2 style="font-size:16px;margin:18px 0 8px">Connections</h2>' + tableHTML : '')
+  + '<div class="controls" style="margin-top:12px"><button onclick="window.print()">Print</button></div>'
+  + '<script>(function(){'
+      // 1) Recompute --portW based on a full-width device width (or container width)
+    + 'var host=document.getElementById("printDevices");'
+    + 'var full=host.querySelector(".device-wrap.full")||host.querySelector(".device-wrap");'
+    + 'var w=(full?full.getBoundingClientRect().width:host.getBoundingClientRect().width)||800;'
+    + 'var gap=8;var portW=Math.max(52,Math.floor((w - (11*gap))/12));'
+    + 'document.documentElement.style.setProperty("--portW", portW+"px");'
+      // 2) Apply the correct column template to each row
+    + 'var rows=document.querySelectorAll(".port-row");'
+    + 'for(var i=0;i<rows.length;i++){var row=rows[i];var wrap=row.closest(".device-wrap");'
+    + 'var isFull=wrap && wrap.classList.contains("full");'
+    + 'row.style.gridTemplateColumns=isFull? "repeat(12, var(--portW))" : "repeat(6, var(--portW))";}'
+    + '})();<\/script>'
+  + '</body></html>';
+
+  var win = window.open('', '_blank');
+  win.document.open(); win.document.write(html); win.document.close();
+}
+
+
+/* Orchestration */
+function render(){ renderDevices(); renderConnections(); }
+
+/* Palette (36 preset colours) */
+(function(){
+  var palette = [
+    '#ff3b30','#ff9500','#ffcc00','#34c759','#30d158','#5ac8fa','#007aff','#5856d6','#af52de',
+    '#ff2d55','#ff6b6b','#ffd166','#06d6a0','#4cd964','#64d2ff','#0a84ff','#5e5ce6','#bf5af2',
+    '#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#2d7cf6','#9b59b6','#8e44ad',
+    '#d0021b','#f5a623','#f8e71c','#7ed321','#50e3c2','#4a90e2','#007aff','#9013fe','#b8e986'
+  ];
+  var modal = document.getElementById('paletteModal');
+  var grid = document.getElementById('paletteGrid');
+  var openBtn = document.getElementById('openPalette');
+  var closeBtn = document.getElementById('paletteClose');
+  var previewSidebar = document.getElementById('devColorPreview');
+  var chosenColor = '#E74C3C';
+  function open(){ modal.style.display='flex'; }
+  function close(){ modal.style.display='none'; }
+  function updatePreview(){ previewSidebar.style.background = chosenColor; }
+  grid.innerHTML = '';
+  palette.forEach(function(hex){
+    var chip = document.createElement('button');
+    chip.className = 'chip'; chip.style.background = hex; chip.title = hex;
+    chip.addEventListener('click', function(){ chosenColor = hex; updatePreview(); close(); });
+    grid.appendChild(chip);
+  });
+  openBtn.addEventListener('click', open); closeBtn.addEventListener('click', close); updatePreview();
+  document.getElementById('addBtn').addEventListener('click', function(){
+    var name = document.getElementById('devName').value.trim();
+    var ports = Math.max(1, Math.min(512, Number(document.getElementById('devPorts').value)||1));
+    if(!name){ alert('Please enter a device name.'); return; }
+    state.devices.push({ id:uid(), name:name, ports:ports, color:chosenColor, forceFullRow:false, midWrapMode:'balanced' });
+    document.getElementById('devName').value=''; save(); render();
+  });
+})();
+
+/* Layout modal */
+function openLayoutModal(deviceId){
+  var d = deviceById(deviceId); if (!d) return;
+  var backdrop = $('#layoutModal');
+  var nameEl = $('#layoutDeviceName');
+  var selFull = $('#layoutFullRow');
+  var selMid = $('#layoutMidWrap');
+  var rowMid = $('#optMidWrap');
+  nameEl.textContent = d.name + ' ('+d.ports+' ports)';
+  selFull.value = d.forceFullRow ? 'full' : 'auto';
+  selMid.value = (d.midWrapMode === 'twelve') ? 'twelve' : 'balanced';
+  rowMid.style.display = (d.ports>=13 && d.ports<=24) ? 'flex' : 'none';
+  $('#layoutCancel').onclick = function(){ backdrop.style.display='none'; };
+  $('#layoutSave').onclick = function(){
+    d.forceFullRow = (selFull.value === 'full');
+    if (d.ports>=13 && d.ports<=24) d.midWrapMode = (selMid.value === 'twelve') ? 'twelve' : 'balanced';
+    save(); backdrop.style.display='none'; render();
+  };
+  backdrop.style.display = 'flex';
+}
+
+/* Wire buttons */
+document.getElementById('clearAll').addEventListener('click', function(){
+  if(!confirm('Delete ALL devices and connections?')) return;
+  state = deepClone(defaultState); save(); render();
+});
+document.getElementById('exportJson').addEventListener('click', function(){
+  var blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  var url = URL.createObjectURL(blob); var a = document.createElement('a');
+  a.href = url; a.download = 'ethernet-connection-map.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+document.getElementById('importFile').addEventListener('change', function(e){
+  var file = e.target.files && e.target.files[0]; if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    try{
+      var parsed = JSON.parse(reader.result);
+      if(!Array.isArray(parsed.devices) || !Array.isArray(parsed.links)) throw new Error('Invalid schema');
+      parsed.portAliases = parsed.portAliases || {};
+
+      // 1) Normalize devices first (not touching state yet)
+      var devices = parsed.devices.map(function(d){
+        return {
+          id: d.id || uid(),
+          name: String(d.name || 'Unnamed'),
+          ports: Math.max(1, Math.min(512, Number(d.ports)||1)),
+          color: d.color || '#888',
+          forceFullRow: !!d.forceFullRow,
+          midWrapMode: (d.midWrapMode === 'twelve' ? 'twelve' : 'balanced')
+        };
+      });
+
+      // 2) Build a quick ID set for filtering links
+      var idSet = Object.create(null);
+      for (var i=0;i<devices.length;i++) idSet[devices[i].id] = true;
+
+      // 3) Normalize + filter links using idSet
+      var links = (parsed.links || []).map(function(L){
+        return {
+          id: L.id || uid(),
+          a: { deviceId: String(L.a.deviceId), port: Number(L.a.port) },
+          b: { deviceId: String(L.b.deviceId), port: Number(L.b.port) }
+        };
+      }).filter(function(L){
+        return idSet[L.a.deviceId] && idSet[L.b.deviceId] && L.a.port>=1 && L.b.port>=1;
+      });
+
+      // 4) Commit state once
+      state = { devices: devices, links: links, portAliases: parsed.portAliases };
+      save(); render();
+    }catch(err){
+      alert('Import failed: '+err.message);
+    } finally {
+      e.target.value='';
+    }
+  };
+  reader.readAsText(file);
+});
+document.getElementById('importJsonBtn').addEventListener('click', function(){
+  document.getElementById('importFile').click();
+});
+document.getElementById('searchBox').addEventListener('input', renderConnections);
+document.getElementById('printSheet').addEventListener('click', function(){ openPrintSheet(true); });
+
+/* First paint */
+render();
+updateUniformPortWidth();
+</script>
+</body>
+</html>
