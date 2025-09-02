@@ -18,7 +18,7 @@ Or download the HTML file and run it locally.
 
 ## 📥 Download
 Grab the latest release here:  
-👉 [Releases](https://github.com/YOURUSERNAME/ethernet-connection-manager/releases)
+👉 [Releases](https://github.com/bijomaru78/eccm/releases)
 
 ## 💡 Support
 This project is free and open source (GPL-3.0).  
