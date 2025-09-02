@@ -24,9 +24,7 @@ Grab the latest release here:
 This project is free and open source (GPL-3.0).  
 If it saves you time or helps in your work, consider supporting development:  
 
-<a href="https://www.buymeacoffee.com/bijomaru78" target="_blank">
-  <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&slug=bijomaru78&button_colour=5F7FFF&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00" />
-</a>
+<a href="https://www.buymeacoffee.com/bijomaru78" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## 📜 License
 This project is licensed under the **GNU GPL-3.0**.  
