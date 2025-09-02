@@ -12,7 +12,7 @@ Create switches, patch panels, wall ports, routers, etc. Assign ports, connect t
 
 ## 🚀 Try it online
 You can open the app instantly here (hosted via GitHub Pages):  
-👉 [Ethernet Connection Manager Demo](https://bijomaru78.github.io/eccm)
+👉 [Ethernet Cable Connection Manager DEMO](https://bijomaru78.github.io/eccm/ECCM.html)
 
 Or download the HTML file and run it locally.
 
