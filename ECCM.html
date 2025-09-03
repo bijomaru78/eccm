@@ -10,6 +10,9 @@
     --portGapFull:9px;  /* full device rows (12 columns) */
     --portGapHalf:8px;  /* half device rows (6 columns)  */
     --portW12:60px; --portW6:60px;
+
+    /* Reserved port styling — change this to any colour you like */
+    --reserved-bg:#555; /* <- adjust reserved background here */
   }
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
@@ -57,6 +60,7 @@
   .port .peer{margin-top:4px;font-size:12px;font-weight:700;min-height:1.4em}
   .port .tip{position:absolute;top:6px;right:6px;font-size:10px;color:#7a8191}
   .port.selected{ /* visual handled via box-shadow applied inline */ }
+  .port.reserved{ background:var(--reserved-bg)!important; color:#fff!important }
 
   /* Connections table */
   .grid-slim{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:8px;overflow:hidden; table-layout: fixed;}
@@ -67,6 +71,9 @@
   .conn-row td.deviceB .devName { color:#fff; font-weight:400; }
   .conn-row.highlight td.deviceA .devName,
   .conn-row.highlight td.deviceB .devName { color:var(--devColor); font-weight:700; }
+  /* Reserved rows visual */
+  .conn-row.reserved-row td { background:#121622; }
+  .conn-row.reserved-row:hover td { background:#151b2a; }
 
   /* Colour picker */
   .color-picker-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -115,7 +122,12 @@
         <input id="importProfileFile" type="file" accept=".json,application/json" style="display:none">
       </div>
 
-      <div class="small muted" style="margin-top:6px">Profiles are separate layouts (e.g., different customers). Everything autosaves.</div>
+      <div class="small muted" style="margin-top:6px">
+        Profiles are separate layouts (e.g., different customers). Everything autosaves.
+      </div>
+      <div class="small muted" style="margin-top:6px">
+        Tips: Alt-click a port to set an alias • <strong>CTRL-click</strong> to mark as <strong>Reserved</strong>.
+      </div>
     </div>
 
     <div class="card">
@@ -155,7 +167,7 @@
 
     <div class="card">
       <h3>Find connection</h3>
-      <input id="searchBox" type="text" placeholder="Filter by device or port…" />
+      <input id="searchBox" type="text" placeholder="Filter by device, port, alias, or reserved…" />
       <div class="small muted">Filters the table below.</div>
     </div>
   </aside>
@@ -236,7 +248,7 @@ const HI_BLUR    = 100; // px: inner white glow blur
 /* ===================== PROFILES STORAGE ===================== */
 var STORE_KEY = 'ethcm_profiles_v1';
 var OLD_SINGLE_KEY = 'ethcm_v12';
-var defaultState = { devices: [], links: [], portAliases: {} };
+var defaultState = { devices: [], links: [], portAliases: {}, reservedPorts: {} };
 function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
 function uid(){ return 'id_' + Math.random().toString(36).slice(2,10); }
 
@@ -260,6 +272,7 @@ function normalizeState(st){
   st.devices = Array.isArray(st.devices) ? st.devices : [];
   st.links = Array.isArray(st.links) ? st.links : [];
   st.portAliases = st.portAliases || {};
+  st.reservedPorts = st.reservedPorts || {};
   st.devices.forEach(function(d){
     if (d.forceFullRow === undefined) d.forceFullRow = false;
     if (d.midWrapMode === undefined) d.midWrapMode = 'balanced';
@@ -290,9 +303,15 @@ function el(tag, attrs){
 function deviceById(id){ for(var i=0;i<state.devices.length;i++){ if(state.devices[i].id===id) return state.devices[i]; } return null; }
 function indexById(id){ return state.devices.findIndex(function(d){return d.id===id;}); }
 
-/* ===================== LINK HELPERS (dual-aware) ===================== */
+/* ===================== LINK/RESERVED HELPERS (dual-aware) ===================== */
 function keyFor(deviceId, port, sub){ return deviceId + ':' + port + ':' + (sub==null ? '' : sub); }
 function aliasFor(deviceId, port, sub){ return state.portAliases[keyFor(deviceId,port,sub)] || ''; }
+function reservedLabelFor(deviceId, port, sub){
+  return (state.reservedPorts && state.reservedPorts[keyFor(deviceId,port,sub)]) || null;
+}
+function isReservedPort(deviceId, port, sub){
+  return !!reservedLabelFor(deviceId, port, sub);
+}
 function linkForPort(deviceId, port, sub){
   for(var i=0;i<state.links.length;i++){
     var L = state.links[i];
@@ -308,6 +327,7 @@ function getPeer(deviceId, port, sub){
 }
 function connectPorts(a,b){
   if (linkForPort(a.deviceId,a.port,a.sub) || linkForPort(b.deviceId,b.port,b.sub)) return false;
+  if (isReservedPort(a.deviceId,a.port,a.sub) || isReservedPort(b.deviceId,b.port,b.sub)) return false;
   var id = uid(); state.links.push({ id:id, a:a, b:b }); saveStore(); render(); highlightLink(id); return true;
 }
 
@@ -329,24 +349,18 @@ function paintPortBase(node, bgHex){
 function clearSelectionOutlines(){
   $all('.port.selected').forEach(function(n){
     n.classList.remove('selected');
-    n.style.boxShadow = 'none';  // removes both outer ring and inner glow (we use box-shadow for both)
-    // restore bottom divider if we hid it before (not strictly needed here but safe)
-    if (n.dataset && n.dataset.sub === '1'){
-      // keep the divider as defined in renderPortCell; we don't change it here
-    }
+    n.style.boxShadow = 'none';
   });
 }
 
 /* APPLY selection visuals: same on singles and dual halves */
-function outlineForSelection(node, thick){
+function outlineForSelection(node){
   node.classList.add('selected');
-  // Simulate a 3px white outline (non-inset, zero-spread ring) + inner white ring + soft inner glow
-  // This does NOT change layout and respects border-radius.
   var o = HI_OUTLINE, r = HI_RING, b = HI_BLUR;
-  node.style.boxShadow = 
-    '0 0 0 ' + o + 'px #fff,' +              /* outer white ring (outline) */
-    'inset 0 0 0 ' + r + 'px #fff,' +        /* crisp inner ring */
-    'inset 0 0 ' + b + 'px rgba(255,255,255,.38)'; /* soft inner glow */
+  node.style.boxShadow =
+    '0 0 0 ' + o + 'px #fff,' +
+    'inset 0 0 0 ' + r + 'px #fff,' +
+    'inset 0 0 ' + b + 'px rgba(255,255,255,.38)';
 }
 
 /* ===================== UNIFORM PORT WIDTHS (two gaps) ===================== */
@@ -422,10 +436,10 @@ function renderDeviceWrap(d, fullWidth){
   var wrap = el('div',{class:'device-wrap ' + (fullWidth ? 'full' : ''), dataset:{id:d.id}});
   wrap.draggable = true;
 
-  wrap.addEventListener('dragstart', function(e){ 
-    wrap.classList.add('dragging'); 
-    e.dataTransfer.setData('text/plain', d.id); 
-    e.dataTransfer.effectAllowed='move'; 
+  wrap.addEventListener('dragstart', function(e){
+    wrap.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', d.id);
+    e.dataTransfer.effectAllowed='move';
   });
   wrap.addEventListener('dragend', function(){ wrap.classList.remove('dragging'); });
   wrap.addEventListener('dragover', function(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; });
@@ -433,7 +447,7 @@ function renderDeviceWrap(d, fullWidth){
     e.preventDefault();
     var draggedId = e.dataTransfer.getData('text/plain'); if (!draggedId || draggedId === d.id) return;
     var from = indexById(draggedId), to = indexById(d.id); if (from<0 || to<0) return;
-    var item = state.devices.splice(from,1)[0]; if (from < to) to -= 1; state.devices.splice(to,0,item); 
+    var item = state.devices.splice(from,1)[0]; if (from < to) to -= 1; state.devices.splice(to,0,item);
     saveStore(); render();
   });
 
@@ -456,12 +470,12 @@ function renderDeviceWrap(d, fullWidth){
       el('button',{class:'btn-danger',title:'Delete', onclick:function(ev){
         ev.stopPropagation();
         if(!confirm('Delete "'+(d.name||'Unnamed')+'" and its links?')) return;
-        state.links = state.links.filter(function(L){ 
-          return String(L.a.deviceId)!==String(d.id) && String(L.b.deviceId)!==String(d.id); 
+        state.links = state.links.filter(function(L){
+          return String(L.a.deviceId)!==String(d.id) && String(L.b.deviceId)!==String(d.id);
         });
         state.devices = state.devices.filter(function(x){ return String(x.id)!==String(d.id); });
-        Object.keys(state.portAliases).forEach(function(k){ 
-          if(k.split(':')[0]===String(d.id)) delete state.portAliases[k]; 
+        Object.keys(state.portAliases).forEach(function(k){
+          if(k.split(':')[0]===String(d.id)) delete state.portAliases[k];
         });
         saveStore(); render();
       }}, 'Delete')
@@ -474,7 +488,7 @@ function renderDeviceWrap(d, fullWidth){
       var c = el('span',{class:'inline-controls'},
         el('button',{class:'mini', title:'Add one port', onclick:function(e){ e.stopPropagation(); changePorts(d, (d.ports||1)+1); saveStore(); render(); }}, '+ Port'),
         el('button',{class:'mini', title:'Remove one port', onclick:function(e){ e.stopPropagation(); if ((d.ports||1) <= 1) return; changePorts(d, (d.ports||1)-1); saveStore(); render(); }}, '– Port')
-      ); 
+      );
       return c;
     })()
   );
@@ -490,21 +504,29 @@ function renderDeviceWrap(d, fullWidth){
     var peerDev = peer ? deviceById(peer.deviceId) : null;
     var peerPort = peer ? peer.port : null;
     var alias = aliasFor(d.id,p,sub);
+    var reserved = reservedLabelFor(d.id,p,sub);
 
     var node = el('div',{
-        class:'port'+(linked?' connected':''), 
+        class:'port'+(linked?' connected':'')+(reserved?' reserved':''), 
         dataset:{deviceId:d.id, port:p, sub:(sub==null?undefined:sub)}
       },
-      el('div',{class:'tip'}, linked?'⇄':'+'),
+      el('div',{class:'tip'}, reserved ? '⟂' : (linked?'⇄':'+')),
       el('div',{class:'num'}, 'Port '+p+(sub!=null ? '/'+(sub+1) : '')),
       el('div',{class:'alias'}, alias||''),
-      el('div',{class:'peer'}, peerPort?String(peerPort):'')
+      el('div',{class:'peer'}, reserved ? (reserved||'Reserved') : (peerPort?String(peerPort):''))
     );
 
-    if (linked && peerDev) paintPortBase(node, peerDev.color || '#22354a');
-    else paintPortBase(node, '#0f141d');
+    // Paint base colour — reserved takes precedence
+    if (reserved){
+      paintPortBase(node, 'var(--reserved-bg)');
+    } else if (linked && peerDev){
+      paintPortBase(node, peerDev.color || '#22354a');
+    } else {
+      paintPortBase(node, '#0f141d');
+    }
 
     node.addEventListener('click', function(ev){
+      // ALT = alias edit
       if (ev.altKey){
         var curr = aliasFor(d.id,p,sub);
         var next = prompt('Optional port label (blank to clear):', curr||'');
@@ -513,22 +535,55 @@ function renderDeviceWrap(d, fullWidth){
         if(!next.trim()) delete state.portAliases[k]; else state.portAliases[k] = next.trim();
         saveStore(); render(); return;
       }
+
+      // CTRL = toggle reserved
+      if (ev.ctrlKey){
+        var k = keyFor(d.id,p,sub);
+        if (state.reservedPorts && state.reservedPorts[k]){
+          if(confirm('Clear reserved status for Port '+p+(sub!=null?('/'+(sub+1)):'')+'?')){
+            delete state.reservedPorts[k];
+          }
+        } else {
+          if (!state.reservedPorts) state.reservedPorts = {};
+          var lbl = prompt('Reserved port label (e.g. WAN):', '');
+          if (lbl===null) return;
+          state.reservedPorts[k] = (lbl && lbl.trim()) ? lbl.trim() : 'Reserved';
+        }
+        pendingPort = null;
+        saveStore(); render();
+        return;
+      }
+
+      // Reserved behaves like "already linked": just highlight and stop
+      if (reserved){
+        clearSelectionOutlines();
+        outlineForSelection(node);
+        highlightedLinkId = null; applyRowHighlight();
+        pendingPort = null;
+        return;
+      }
+
+      // If this port is already linked, highlight its link
       if (linkForPort(d.id, p, sub)) {
         clearSelectionOutlines();
         var L1 = linkForPort(d.id, p, sub);
         highlightLink(L1.id, { from:{deviceId:d.id, port:p, sub:sub} });
         pendingPort = null; return;
       }
+
+      // Start or complete a connection
       if (!pendingPort){
         pendingPort = {deviceId:d.id, port:p, sub:sub};
-        clearSelectionOutlines(); outlineForSelection(node, true);
+        clearSelectionOutlines(); outlineForSelection(node);
         highlightedLinkId = null; applyRowHighlight();
         return;
       }
-      if (linkForPort(d.id, p, sub) || linkForPort(pendingPort.deviceId, pendingPort.port, pendingPort.sub)){
-        alert('This port (or the previously selected one) is already linked. Unlink first.');
+      if (linkForPort(d.id, p, sub) || linkForPort(pendingPort.deviceId, pendingPort.port, pendingPort.sub) ||
+          isReservedPort(d.id,p,sub) || isReservedPort(pendingPort.deviceId,pendingPort.port,pendingPort.sub)){
+        alert('That port (or the previously selected one) is unavailable. Unlink/clear Reserved first.');
         pendingPort = null; clearSelectionOutlines(); highlightLink(null); return;
       }
+
       var devA = deviceById(pendingPort.deviceId);
       var devB = deviceById(d.id);
       var msg = 'Create link:\n' + (devA?devA.name:'A') + ' Port ' + pendingPort.port + (pendingPort.sub!=null?'/'+(pendingPort.sub+1):'')
@@ -555,11 +610,11 @@ function renderDeviceWrap(d, fullWidth){
     wrapCell.style.background = 'transparent';
     var top = createSubPort(d, p, 0);
     top.style.border = '0';
-    top.style.borderRadius = '10px 10px 0 0';   /* rounded top corners */
+    top.style.borderRadius = '10px 10px 0 0';
     var bottom = createSubPort(d, p, 1);
     bottom.style.border = '0';
-    bottom.style.borderTop = '1px solid var(--line)'; /* divider */
-    bottom.style.borderRadius = '0 0 10px 10px';      /* rounded bottom corners */
+    bottom.style.borderTop = '1px solid var(--line)';
+    bottom.style.borderRadius = '0 0 10px 10px';
     wrapCell.appendChild(top); wrapCell.appendChild(bottom);
     return wrapCell;
   }
@@ -589,6 +644,9 @@ function changePorts(d, newCount){
     });
     Object.keys(state.portAliases).forEach(function(k){
       var parts = k.split(':'); if(parts[0]===d.id && Number(parts[1])>newCount) delete state.portAliases[k];
+    });
+    Object.keys(state.reservedPorts).forEach(function(k){
+      var parts = k.split(':'); if(parts[0]===d.id && Number(parts[1])>newCount) delete state.reservedPorts[k];
     });
   }
   d.ports = newCount;
@@ -641,6 +699,56 @@ function renderConnections(){
 
     rows.push(tr);
   });
+
+  /* Reserved ports → searchable virtual rows */
+  if (state.reservedPorts){
+    Object.keys(state.reservedPorts).forEach(function(k){
+      var parts = k.split(':');
+      var devId = parts[0];
+      var port  = Number(parts[1]);
+      var sub   = (parts[2] === '' ? null : Number(parts[2]));
+      var d     = deviceById(devId);
+      if(!d) return;
+
+      var rLabel = state.reservedPorts[k];
+      var alias  = aliasFor(devId, port, sub);
+
+      var textParts = [
+        (d && d.name)||'Unknown',
+        'port'+port, 'port '+port, String(port),
+        alias||'', rLabel||'',
+        (sub!=null ? (sub===0?'top':'bottom') : '')
+      ];
+      var text = textParts.join(' ').toLowerCase();
+      if(q && text.indexOf(q)===-1) return;
+
+      var tr = el('tr',{class:'conn-row reserved-row', dataset:{deviceId:devId, port:String(port), sub:(sub==null?'':String(sub))}},
+        el('td',{}, '—'),
+        el('td',{class:'deviceA'}, el('span',{class:'devName', style:'--devColor:'+(d.color||'#ccc'), title:d.name}, d.name)),
+        el('td',{}, 'Port '+port + (sub!=null?('/'+(sub+1)) : '')),
+        el('td',{}, alias || ''),
+        el('td',{}, '⟂'),
+        el('td',{class:'deviceB'}, el('span',{class:'devName', style:'--devColor:#666', title:'Reserved'}, 'Reserved')),
+        el('td',{}, '—'),
+        el('td',{}, rLabel || ''),
+        el('td',{}, el('button',{class:'btn-danger',onclick:function(){
+          delete state.reservedPorts[k];
+          saveStore(); render();
+        }}, 'Clear'))
+      );
+
+      tr.addEventListener('click', function(e){
+        if(e.target.tagName.toLowerCase()==='button') return;
+        highlightedLinkId = null; applyRowHighlight(); clearSelectionOutlines();
+        var sel = '.port[data-device-id="'+devId+'"][data-port="'+port+'"]' + (sub!=null?('[data-sub="'+sub+'"]'):'');
+        var n = document.querySelector(sel);
+        if(n) outlineForSelection(n);
+      });
+
+      rows.push(tr);
+    });
+  }
+
   if(!rows.length){
     tb.appendChild(el('tr',{}, el('td',{colspan:'9',class:'muted'},'No connections found.')));
   } else rows.forEach(function(r){ tb.appendChild(r); });
@@ -658,7 +766,7 @@ function highlightLink(linkId, opts){
   if (portB) outlineForSelection(portB);
   if (opts && opts.from){
     var origin = document.querySelector(sel(opts.from));
-    if (origin){ outlineForSelection(origin, true); }
+    if (origin){ outlineForSelection(origin); }
   }
 }
 function unlink(linkId){
@@ -740,11 +848,14 @@ function render(){ renderDevices(); renderConnections(); }
 
 /* ===================== PALETTE ===================== */
 (function(){
+  /* 36 distinct colours, no greys */
   var palette = [
-    '#ff3b30','#ff9500','#ffcc00','#34c759','#30d158','#5ac8fa','#007aff','#5856d6','#af52de',
-    '#ff2d55','#ff6b6b','#ffd166','#06d6a0','#4cd964','#64d2ff','#0a84ff','#5e5ce6','#bf5af2',
-    '#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#2d7cf6','#9b59b6','#8e44ad',
-    '#d0021b','#f5a623','#f8e71c','#7ed321','#50e3c2','#4a90e2','#007aff','#9013fe','#b8e986'
+    '#e6194b','#3cb44b','#ffe119','#4363d8','#f58231','#911eb4',
+    '#46f0f0','#f032e6','#bcf60c','#fabebe','#008080','#e6beff',
+    '#9a6324','#ffd8b1','#800000','#aaffc3','#808000','#ffd700',
+    '#000075','#ff4500','#da70d6','#1e90ff','#ff69b4','#7cfc00',
+    '#20b2aa','#ff6347','#32cd32','#ff7f50','#87ceeb','#ba55d3',
+    '#2e8b57','#ff8c00','#00bcd4','#8a2be2','#00fa9a','#ff1493'
   ];
   var modal = document.getElementById('paletteModal');
   var grid = document.getElementById('paletteGrid');
@@ -869,7 +980,7 @@ document.getElementById('deleteProfileBtn').addEventListener('click', function()
 
 /* Export profile (includes profileName) */
 document.getElementById('exportProfileBtn').addEventListener('click', function(){
-  var data = { profileName: store.current, devices: state.devices, links: state.links, portAliases: state.portAliases, exportedAt: new Date().toISOString() };
+  var data = { profileName: store.current, devices: state.devices, links: state.links, portAliases: state.portAliases, reservedPorts: state.reservedPorts, exportedAt: new Date().toISOString() };
   var blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
   var url = URL.createObjectURL(blob); var a = document.createElement('a');
   a.href = url; a.download = 'ethernet-profile-' + store.current.replace(/[^a-z0-9-_]+/gi,'_') + '.json';
@@ -886,6 +997,7 @@ document.getElementById('importProfileFile').addEventListener('change', function
       var parsed = JSON.parse(reader.result);
       if(!Array.isArray(parsed.devices) || !Array.isArray(parsed.links)) throw new Error('Invalid schema');
       parsed.portAliases = parsed.portAliases || {};
+      parsed.reservedPorts = parsed.reservedPorts || {};
 
       var devices = parsed.devices.map(function(d){
         return {
@@ -913,7 +1025,7 @@ document.getElementById('importProfileFile').addEventListener('change', function
       if(!name || !name.trim()) return; name = name.trim();
       if(store.profiles[name]){ alert('A profile with that name already exists.'); return; }
 
-      store.profiles[name] = { devices: devices, links: links, portAliases: parsed.portAliases };
+      store.profiles[name] = { devices: devices, links: links, portAliases: parsed.portAliases, reservedPorts: parsed.reservedPorts };
       saveStore();
       refreshProfileSelect();
       switchProfile(name);
