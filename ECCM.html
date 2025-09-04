@@ -7,12 +7,10 @@
 <style>
   :root {
     --bg:#0f1115; --panel:#171a21; --ink:#e8eaf1; --muted:#a6adbb; --line:#262a33;
-    --portGapFull:9px;  /* full device rows (12 columns) */
-    --portGapHalf:8px;  /* half device rows (6 columns)  */
+    --portGapFull:9px;
+    --portGapHalf:8px;
     --portW12:60px; --portW6:60px;
-
-    /* Reserved port styling — change this to any colour you like */
-    --reserved-bg:#555; /* <- adjust reserved background here */
+    --reserved-bg:#555;
   }
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
@@ -56,11 +54,16 @@
   .port-row{display:grid;gap:var(--portGapHalf)}
   .port{position:relative;border:1px solid var(--line);background:#0f141d;border-radius:10px;padding:8px 6px 6px;cursor:pointer;text-align:center;user-select:none;transition:background .12s}
   .port .num{font-size:12px}
-  .port .alias{font-size:11px;margin-top:2px;min-height:1.2em}
+  .port .alias{font-size:12px;margin-top:2px;min-height:1.2em}
   .port .peer{margin-top:4px;font-size:12px;font-weight:700;min-height:1.4em}
   .port .tip{position:absolute;top:6px;right:6px;font-size:10px;color:#7a8191}
   .port.selected{ /* visual handled via box-shadow applied inline */ }
-  .port.reserved{ background:var(--reserved-bg)!important; color:#fff!important }
+  .port:not(.connected):not(.reserved) .num,
+  .port:not(.connected):not(.reserved) .alias,
+  .port:not(.connected):not(.reserved) .peer { color:#fff; }
+  .port.reserved .num,
+  .port.reserved .alias,
+  .port.reserved .peer { color:#fff !important; }
 
   /* Connections table */
   .grid-slim{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:8px;overflow:hidden; table-layout: fixed;}
@@ -125,9 +128,6 @@
       <div class="small muted" style="margin-top:6px">
         Profiles are separate layouts (e.g., different customers). Everything autosaves.
       </div>
-      <div class="small muted" style="margin-top:6px">
-        Tips: Alt-click a port to set an alias • <strong>CTRL-click</strong> to mark as <strong>Reserved</strong>.
-      </div>
     </div>
 
     <div class="card">
@@ -150,7 +150,7 @@
         <button id="clearAll" class="btn-danger" title="Delete everything">Clear all</button>
       </div>
       <div class="small" style="margin-top:6px">
-        Click two free ports to connect • <strong>Unlink</strong> in Connections • <span class="muted">Alt-click</span> a port to set an alias
+        Click two free ports to connect • <strong>Unlink</strong> in Connections • <span class="muted"><strong>Alt-click</strong> a port to set an alias • <strong>CTRL-click</strong> to mark as <strong>Reserved</strong>.
       </div>
     </div>
 
@@ -783,65 +783,120 @@ function openPrintSheet(includeTable){
   var when = new Date().toLocaleString();
 
   var css = ''
-  + ':root{--ink:#111;--line:#ddd;--portGapFull:9px;--portGapHalf:8px;--portW12:60px;--portW6:60px}\n'
++ '@page{size:A4 portrait;margin:12mm}\n'       /* default pages = portrait */
++ '@page:first{size:A4 landscape;margin:12mm}\n'/* first page = landscape */
++ '*{box-sizing:border-box}\n'
++ '@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}\n'
++ '.device,.port,.dual-cell,.swatch,header{ -webkit-print-color-adjust:exact; print-color-adjust:exact }\n'
++ '.page{break-inside:avoid;page-break-inside:avoid}\n'
++ '.page + .page{break-before:page;page-break-before:always}\n'
++ ':root{--ink:#111;--line:#ddd;--prtPortH: 70px}\n'  // ← set your single-port height here
++ '.port{height:var(--prtPortH); overflow:hidden}\n'   // fixed height per single or sub-port
++ '.dual-cell{display:flex;flex-direction:column}\n'   // ensure 2 stacked ports = 2x height
   + '*{box-sizing:border-box}\n'
-  + 'body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:#fff;margin:16px}\n'
+  + 'body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:#fff;margin:0}\n'
+  + '.page{max-width:calc(297mm - 16mm);margin:10mm auto}\n'
   + 'header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}\n'
   + 'h1{font-size:18px;margin:0}\n'
   + '.meta{font-size:12px;color:#555}\n'
   + '.dev-rows{display:flex;flex-direction:column;gap:12px}\n'
-  + '.dev-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}\n'
+  + '.dev-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}\n'
   + '.device-wrap{width:100%}\n'
   + '.device-wrap.full{grid-column:1 / -1}\n'
-  + '.device{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px}\n'
+  + '.device{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;overflow:hidden}\n'
   + '.device-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}\n'
   + '.device-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}\n'
-  + '.device-actions{display:none!important}\n'
-  + '.inline-controls{display:none!important}\n'
+  + '.device-actions,.inline-controls{display:none!important}\n'
   + '.swatch{width:12px;height:12px;border-radius:3px;border:1px solid #0003;display:inline-block}\n'
-  + '.ports-rows{display:flex;flex-direction:column;gap:8px;margin-top:10px}\n'
-  + '.port-row{display:grid;gap:var(--portGapHalf)}\n'
-  + '.port{border:1px solid var(--line);border-radius:8px;padding:6px 6px 4px;text-align:center}\n'
+  + '.ports-rows{display:flex;flex-direction:column;gap:8px;margin-top:10px;overflow:hidden}\n'
+  /* --- KEY: safe default grid so ports lay out horizontally even without JS --- */
+  + '.port-row{display:grid;justify-content:start;align-content:start}\n'
+  + '.device-wrap.full .port-row{grid-template-columns:repeat(12,minmax(40px,1fr));gap:10px !important;}\n'
+  + '.device-wrap:not(.full) .port-row{grid-template-columns:repeat(6,minmax(40px,1fr));gap:7px !important;}\n'
+  /* --------------------------------------------------------------------------- */
+  + '.port{border:1px solid #333;border-radius:8px;padding:6px 3px 4px;text-align:center;grid-column:auto!important;width:auto!important}\n'
   + '.port .tip{display:none}\n'
   + '.port .num{font-size:12px;font-weight:600}\n'
   + '.port .alias{font-size:11px;margin-top:2px;min-height:1.1em}\n'
   + '.port .peer{font-size:12px;font-weight:700;margin-top:4px;min-height:1.2em}\n'
+  /* UNLINKED: white + black text */
+  + '.port:not(.connected):not(.reserved){background:#fff !important;border-color:#444 !important}\n'
+  + '.port:not(.connected):not(.reserved) .num,'
+  + '.port:not(.connected):not(.reserved) .alias,'
+  + '.port:not(.connected):not(.reserved) .peer{color:#000 !important}\n'
+  /* LINKED: keep device colour; ensure readable text if your UI sets light colours */
+  + '.port.connected{color:#000}\n'
+  /* RESERVED: grey #555 + white text */
+  + '.port.reserved{background:#555 !important;color:#fff !important;border-color:#333 !important}\n'
+  + '.dual-cell{border-color:#333 !important}\n'
+  + '.port.reserved .num,.port.reserved .alias,.port.reserved .peer{color:#fff !important}\n'
   + 'table{width:100%;border-collapse:collapse;margin-top:16px}\n'
   + 'th,td{border:1px solid var(--line);padding:6px 8px;font-size:12px;text-align:left}\n'
   + 'th{background:#f6f7f9;font-weight:700}\n'
   + 'th:last-child, td:last-child{display:none}\n'
-  + '@media print{.controls{display:none}body{margin:0;padding:16px}}\n';
+  + '@media print{.controls{display:none};}\n';
+
 
   var html = ''
   + '<!doctype html><html><head><meta charset="utf-8">'
-  + '<title>Port Map – Print</title><style>' + css + '</style></head><body>'
-  + '<header><h1>Ethernet Port Map</h1><div class="meta">' + when + '</div></header>'
+  + '<title>Ethernet Cable Connection Manager – Print</title><style>' + css + '</style></head><body>'
+  + '<div class="page">'
+  + '<header><h1>Profile: ' + store.current + '</h1><div class="meta">' + 'Made using Ethernet Cable Connection Manager: <a href="https://https://github.com/bijomaru78/eccm" target="_blank">https://github.com/bijomaru78/eccm</a> on '+when+'</div></header>' 
   + '<section id="printDevices" class="dev-rows">' + devicesHTML + '</section>'
-  + (tableHTML ? '<h2 style="font-size:16px;margin:18px 0 8px">Connections</h2>' + tableHTML : '')
+  + (tableHTML ? '<div class="page"><h2 style="font-size:16px;margin:18px 0 8px">Connections</h2>' + tableHTML + '</div>' : '')
   + '<div class="controls" style="margin-top:12px"><button onclick="window.print()">Print</button></div>'
+  + '</div>'
   + '<script>(function(){'
-  + 'var host=document.getElementById("printDevices");'
-  + 'var Wrows=(host&&host.getBoundingClientRect?host.getBoundingClientRect().width:800)||800;'
-  + 'var GAP_COL=12, PAD_BRD=26; var gapFull=9, gapHalf=8;'
-  + 'var WfullInner=Wrows - PAD_BRD;'
-  + 'var WhalfInner=(Wrows - GAP_COL)/2 - PAD_BRD;'
-  + 'var portW12=(WfullInner - (11*gapFull))/12;'
-  + 'var portW6 =(WhalfInner - (5*gapHalf))/6;'
-  + 'portW12=Math.max(40,portW12); portW6=Math.max(40,portW6);'
-  + 'document.documentElement.style.setProperty("--portW12", portW12+"px");'
-  + 'document.documentElement.style.setProperty("--portW6",  portW6 +"px");'
-  + 'document.documentElement.style.setProperty("--portGapFull", gapFull+"px");'
-  + 'document.documentElement.style.setProperty("--portGapHalf", gapHalf+"px");'
-  + 'var rows=document.querySelectorAll(".port-row");'
-  + 'for(var i=0;i<rows.length;i++){var row=rows[i];var wrap=row.closest(".device-wrap");var isFull=wrap&&wrap.classList.contains("full");'
-  + 'row.style.gridTemplateColumns=isFull? "repeat(12, var(--portW12))" : "repeat(6, var(--portW6))";'
-  + 'row.style.gap=isFull? "var(--portGapFull)" : "var(--portGapHalf)";}'
-  + 'Array.prototype.forEach.call(document.querySelectorAll("[draggable]"),function(el){el.removeAttribute("draggable");});'
+  + '  var GAP_FULL=9, GAP_HALF=7, MIN_TRACK=40;'
+  + '  function sizeRows(){'
+  + '    var rows=document.querySelectorAll(".port-row,[data-port-row]");'
+  + '    for(var i=0;i<rows.length;i++){'
+  + '      var row=rows[i];'
+  + '      var wrap=row.closest(".device-wrap");'
+  + '      row.style.display = "grid";'
+  + '      row.style.justifyContent = "start";'
+  + '      row.style.alignContent = "start";'
+  + '      row.style.gridAutoFlow = "row";'
+  + '      var isFull = wrap && wrap.classList.contains("full");'
+  + '      var cols   = isFull ? 12 : 6;'
+  + '      var gap    = isFull ? GAP_FULL : GAP_HALF;'
+  + '      var inner = row.getBoundingClientRect().width;'
+  + '      if(inner && inner > 0){'
+  + '        var track = Math.floor((inner - gap * (cols - 1)) / cols);'
+  + '        if (!(track > 0)) track = 60;'
+  + '        if (track < MIN_TRACK) track = MIN_TRACK;'
+  + '		 track += -3;'
+  + '        row.style.gridTemplateColumns = "repeat(" + cols + ", " + track + "px)";'
+  + '      }'
+  + '      row.style.gap = gap + "px";'
+  + '    }'
+  + '  }'
+  + '  requestAnimationFrame(function(){ requestAnimationFrame(sizeRows); });'
+  + '  Array.prototype.forEach.call(document.querySelectorAll(".port"),function(p){'
+  + '    if(!p.classList.contains("connected") && !p.classList.contains("reserved")){'
+  + '      p.style.background=""; p.style.color="";'
+  + '      p.querySelectorAll(".num,.alias,.peer").forEach(function(el){ el.style.color=""; });'
+  + '    }'
+  + '  });'
+  + '  Array.prototype.forEach.call(document.querySelectorAll("[draggable]"),function(el){el.removeAttribute("draggable");});'
   + '})();<\/script>'
   + '</body></html>';
 
-  var win = window.open('', '_blank'); win.document.open(); win.document.write(html); win.document.close();
+  var win = window.open('', '_blank');
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  
+  win.onload = function() {
+  win.focus();
+  setTimeout(function() {
+    win.print();
+    win.close();
+  }, 30); 
+};
 }
+
+
 
 /* ===================== ORCHESTRATION ===================== */
 function render(){ renderDevices(); renderConnections(); }
