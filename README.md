@@ -3,7 +3,9 @@
 A lightweight, browser-based tool for mapping Ethernet connections.  
 Create switches, patch panels, wall ports, routers, etc. Assign ports, connect them, and visualise how your network is wired.  
 
-📖 [User Manual](MANUAL.md)
+📖 **User Manual** see [MANUAL.md](MANUAL.md)
+
+📍 **Roadmap / To-Do:** see [ROADMAP.md](ROADMAP.md)
 
 - 🖥️ Works offline (pure HTML + JavaScript, no server required)  
 - 📂 Save/export/import layouts as JSON  
