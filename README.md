@@ -14,7 +14,18 @@ Create switches, patch panels, wall ports, routers, etc. Assign ports, connect t
 - 🎨 Colour-code devices and customise port aliases  
 - 🔌 Dual-link ports supported (patch panels, wall sockets)
 
+**_Editor:_**
+
 <img src="https://github.com/bijomaru78/eccm/blob/main/eccm_screenshot.png?raw=true">
+
+**_Print sheet (devices and ports):_**
+
+<img width="877" height="430" alt="image" src="https://github.com/user-attachments/assets/4501e636-4e95-4a4a-a0ed-5615fc91229b" />
+
+**_Print sheet (connections table):_**
+
+<img width="617" height="558" alt="image" src="https://github.com/user-attachments/assets/4967c6f2-caf6-4eb2-add0-2a1d5170ad0d" />
+
 
 ## 🚀 Try it online
 You can open the app instantly here (hosted via GitHub Pages):  
