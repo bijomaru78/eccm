@@ -19,7 +19,7 @@
   header h1{font-size:18px;margin:0;font-weight:650}
   .badge{color:var(--muted);font-size:12px;border:1px solid var(--line);padding:2px 8px;border-radius:999px}
 
-  .wrap{position:relative;display:grid;grid-template-columns:340px 1fr;gap:16px;height:calc(100% - 62px)}
+  .wrap{position:relative;display:grid;grid-template-columns:340px 1fr 340px;gap:0;height:calc(100% - 62px)}
   @media (max-width:1024px){.wrap{grid-template-columns:1fr;height:auto}}
   aside,main{padding:16px}
   aside{border-right:1px solid var(--line);background:var(--panel)}
@@ -98,13 +98,22 @@
   .modal label{margin:0;color:var(--ink);font-size:13px}
   .modal select{background:#0f131b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
   .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  
+  /* Right sidebar */
+  #settingsPanel {
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  padding: 16px;
+}
 </style>
 </head>
 <body>
 <header>
   <h1>Ethernet Cable Connection Manager</h1>
   <span class="badge">Offline • LocalStorage • Profiles • JSON import/export • Print</span>
-  <div style="margin-left:auto;display:flex;gap:8px"><button id="printSheet">Print layout</button></div>
+  <div style="margin-left:auto;display:flex;gap:8px">
+    <button id="printSheet">Print layout</button>
+  </div>
 </header>
 
 <div class="wrap">
@@ -137,7 +146,7 @@
       <div class="row">
         <div>
           <label for="devPorts">Ports</label>
-          <input id="devPorts" type="number" inputmode="numeric" min="1" max="512" value="24" />
+          <input id="devPorts" type="number" inputmode="numeric" min="1" max="9999" value="24" />
         </div>
       </div>
       <label>Colour</label>
@@ -187,6 +196,20 @@
       <div class="small muted">Click a row (or a connected port) to highlight both ends.</div>
     </div>
   </main>
+  
+<!-- Right settings sidebar -->
+<aside id="settingsPanel">
+  <div class="card">
+    <h3>Settings</h3>
+	<label for="maxPorts">Maximum ports per device</label>
+	<input id="maxPorts" type="number" min="0" max="9999" />
+	<div style="margin-top:10px;display:flex;gap:8px">
+	  <button id="saveSettingsBtn" class="btn">Save</button>
+	</div>
+  </div>
+</aside>
+
+
 </div>
 
 <!-- Palette -->
@@ -462,7 +485,7 @@ function renderDeviceWrap(d, fullWidth){
         ev.stopPropagation();
         var newName = prompt('Device name:', d.name||''); if(newName==null || !newName.trim()) return;
         var np = prompt('Number of ports (>=1):', String(d.ports||1)); if(np==null) return;
-        changePorts(d, Math.max(1, Math.min(512, Number(np)||1)));
+        changePorts(d, Math.max(1, Math.min(9999, Number(np)||1)));
         d.name = newName.trim();
         var newColor = prompt('Hex colour (e.g. #E74C3C):', d.color||'#888'); if(newColor) d.color = newColor;
         saveStore(); render();
@@ -634,7 +657,7 @@ function renderDeviceWrap(d, fullWidth){
 
 /* ===================== CHANGE PORT COUNT ===================== */
 function changePorts(d, newCount){
-  newCount = Math.max(1, Math.min(512, Number(newCount)||1));
+  newCount = Math.max(1, Math.min(9999, Number(newCount)||1));
   if (newCount === d.ports) return;
   if (newCount < d.ports){
     state.links = state.links.filter(function(L){
@@ -933,7 +956,7 @@ function render(){ renderDevices(); renderConnections(); }
   openBtn.addEventListener('click', open); closeBtn.addEventListener('click', close); updatePreview();
   document.getElementById('addBtn').addEventListener('click', function(){
     var name = document.getElementById('devName').value.trim();
-    var ports = Math.max(1, Math.min(512, Number(document.getElementById('devPorts').value)||1));
+    var ports = Math.max(1, Math.min(9999, Number(document.getElementById('devPorts').value)||1));
     if(!name){ alert('Please enter a device name.'); return; }
     state.devices.push({ id:uid(), name:name, ports:ports, color:chosenColor, forceFullRow:false, midWrapMode:'balanced', smallWrap:false, dualLink:false });
     document.getElementById('devName').value=''; saveStore(); render();
@@ -1058,7 +1081,7 @@ document.getElementById('importProfileFile').addEventListener('change', function
         return {
           id: d.id || uid(),
           name: String(d.name || 'Unnamed'),
-          ports: Math.max(1, Math.min(512, Number(d.ports)||1)),
+          ports: Math.max(1, Math.min(9999, Number(d.ports)||1)),
           color: d.color || '#888',
           forceFullRow: !!d.forceFullRow,
           midWrapMode: (d.midWrapMode === 'twelve' ? 'twelve' : 'balanced'),
@@ -1141,11 +1164,79 @@ document.addEventListener('click', function(e){
   pendingPort = null; highlightLink(null); clearSelectionOutlines();
 }, true);
 
+/* ===================== SETTINGS ===================== */
+if (!store.settings) {
+  store.settings = { maxPorts: 512 };
+}
+
+function getMaxPortsSetting() {
+  return Math.max(1, Number(store.settings?.maxPorts) || 512);
+}
+
+function saveSettings() {
+  saveStore();
+  applySettings();
+}
+
+function applySettings() {
+  const maxPorts = getMaxPortsSetting();
+
+  const devPorts = document.getElementById('devPorts');
+  if (devPorts) {
+    devPorts.max = String(maxPorts);
+    if (Number(devPorts.value) > maxPorts) devPorts.value = String(maxPorts);
+  }
+
+  const maxPortsInput = document.getElementById('maxPorts');
+  if (maxPortsInput) maxPortsInput.value = String(maxPorts);
+}
+
+applySettings();
+
+const maxPortsInput = document.getElementById('maxPorts');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+if (saveSettingsBtn && maxPortsInput) {
+  saveSettingsBtn.addEventListener('click', () => {
+    const val = Math.max(1, Number(maxPortsInput.value) || 9999);
+    store.settings.maxPorts = val;
+    saveSettings();
+  });
+}
+
+(function clampBeforeAdd() {
+  const addBtn = document.getElementById('addBtn');
+  const devPorts = document.getElementById('devPorts');
+  if (!addBtn || !devPorts) return;
+
+  devPorts.addEventListener('input', () => {
+    const maxPorts = getMaxPortsSetting();
+    let v = Math.max(1, Number(devPorts.value) || 1);
+    if (v > maxPorts) v = maxPorts;
+    devPorts.value = String(v);
+  });
+
+  addBtn.addEventListener('click', () => {
+    const maxPorts = getMaxPortsSetting();
+    let v = Math.max(1, Number(devPorts.value) || 1);
+    if (v > maxPorts) devPorts.value = String(maxPorts);
+  }, true); //
+})();
+
+const __orig_changePorts = changePorts;
+changePorts = function(d, newCount) {
+  const maxPorts = getMaxPortsSetting();
+  const clamped = Math.max(1, Math.min(maxPorts, Number(newCount) || 1));
+  return __orig_changePorts(d, clamped);
+};
+
+
 /* ===================== INIT ===================== */
 function initProfilesUI(){ refreshProfileSelect(); }
 initProfilesUI();
 render();
 updateUniformPortWidth();
+
+
 </script>
 </body>
 </html>
