@@ -1,116 +1,131 @@
 <!doctype html>
 <html lang="en">
 <head>
+<link type="image/png" sizes="32x32" rel="icon" href="https://img.icons8.com/stickers/32/ethernet-on.png">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ethernet Cable Connection Manager</title>
 <style>
-  :root {
-    --bg:#0f1115; --panel:#171a21; --ink:#e8eaf1; --muted:#a6adbb; --line:#262a33;
-    --portGapFull:9px;
-    --portGapHalf:8px;
-    --portW12:60px; --portW6:60px;
-    --reserved-bg:#555;
-  }
-  html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-  *,*::before,*::after{box-sizing:border-box}
-  header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:linear-gradient(180deg,#12151b,#10131a)}
-  header h1{font-size:18px;margin:0;font-weight:650}
-  .badge{color:var(--muted);font-size:12px;border:1px solid var(--line);padding:2px 8px;border-radius:999px}
-
-  .wrap{position:relative;display:grid;grid-template-columns:340px 1fr 340px;gap:0;height:calc(100% - 62px)}
-  @media (max-width:1024px){.wrap{grid-template-columns:1fr;height:auto}}
-  aside,main{padding:16px}
-  aside{border-right:1px solid var(--line);background:var(--panel)}
-  main{overflow:auto;position:relative}
-
-  .card{background:#141821;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
-  .card h3{margin:0 0 8px 0;font-size:14px;font-weight:650}
-  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
-  input[type=text],input[type=number],select{width:100%;max-width:100%;background:#0f131b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
-  button,.btn{background:#11151d;color:var(--ink);border:1px solid var(--line);padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:600}
-  button:hover{border-color:#2a2f3b}
-  .btn-danger{border-color:#3b2222}
-  .muted{color:var(--muted)} .small{font-size:12px}
-  .mini{padding:4px 8px;font-size:12px;border-radius:6px}
-
-  /* Devices layout (two-column grid) */
-  .dev-rows{display:flex;flex-direction:column;gap:12px}
-  .dev-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-  .device-wrap{display:block;width:100%}
-  .device-wrap.full{grid-column:1 / -1}
-
-  .device{background:#131722;border:1px solid var(--line);border-radius:12px;padding:12px;position:relative;width:100%}
-  .device-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-  .device-title{font-size:15px;font-weight:650;display:flex;align-items:center;gap:8px}
-  .swatch{width:12px;height:12px;border-radius:3px;border:1px solid #0006;display:inline-block}
-  .device-actions{display:flex;gap:6px;flex-wrap:wrap}
-  .meta{font-size:12px;color:var(--muted);margin-top:2px}
-  .meta .inline-controls{margin-left:8px;display:inline-flex;gap:6px}
-
-  /* Ports */
-  .ports-rows{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-  .port-row{display:grid;gap:var(--portGapHalf)}
-  .port{position:relative;border:1px solid var(--line);background:#0f141d;border-radius:10px;padding:8px 6px 6px;cursor:pointer;text-align:center;user-select:none;transition:background .12s}
-  .port .num{font-size:12px}
-  .port .alias{font-size:12px;margin-top:2px;min-height:1.2em}
-  .port .peer{margin-top:4px;font-size:12px;font-weight:700;min-height:1.4em}
-  .port .tip{position:absolute;top:6px;right:6px;font-size:10px;color:#7a8191}
-  .port.selected{ /* visual handled via box-shadow applied inline */ }
-  .port:not(.connected):not(.reserved) .num,
-  .port:not(.connected):not(.reserved) .alias,
-  .port:not(.connected):not(.reserved) .peer { color:#fff; }
-  .port.reserved .num,
-  .port.reserved .alias,
-  .port.reserved .peer { color:#fff !important; }
-
-  /* Connections table */
-  .grid-slim{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:8px;overflow:hidden; table-layout: fixed;}
-  .grid-slim th,.grid-slim td{font-size:13px;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .grid-slim th{background:#121722;color:var(--muted);font-weight:600}
-  .conn-row.highlight td{background:#0f1522}
-  .conn-row td.deviceA .devName,
-  .conn-row td.deviceB .devName { color:#fff; font-weight:400; }
-  .conn-row.highlight td.deviceA .devName,
-  .conn-row.highlight td.deviceB .devName { color:var(--devColor); font-weight:700; }
-  /* Reserved rows visual */
-  .conn-row.reserved-row td { background:#121622; }
-  .conn-row.reserved-row:hover td { background:#151b2a; }
-
-  /* Colour picker */
-  .color-picker-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .swatch-lg{width:24px;height:24px;border-radius:6px;border:1px solid #0006;display:inline-block}
-  .color-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:#0f141d;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:600;color:var(--ink)}
-  .color-btn:hover{border-color:#2a2f3b}
-  .palette-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
-  .palette{background:#141821;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:280px;max-width:90vw}
-  .palette h4{margin:0 0 10px 0;font-size:14px}
-  .palette-grid{display:grid;grid-template-columns:repeat(6, 36px);gap:8px;justify-content:center}
-  .chip{width:36px;height:36px;border-radius:8px;border:1px solid rgba(0,0,0,.35);cursor:pointer}
-  .palette .actions{display:flex;justify-content:flex-end;margin-top:12px}
-
-  /* Layout modal */
-  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:60}
-  .modal{background:#141821;border:1px solid var(--line);border-radius:12px;padding:14px;min-width:300px;max-width:90vw}
-  .modal h4{margin:0 0 10px 0;font-size:14px}
-  .modal .row{display:flex;gap:8px;align-items:center;margin:6px 0}
-  .modal label{margin:0;color:var(--ink);font-size:13px}
-  .modal select{background:#0f131b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
-  .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
-  
-  /* Right sidebar */
-  #settingsPanel {
-  border-left: 1px solid var(--line);
-  background: var(--panel);
-  padding: 16px;
-}
+:root{--bg:#0f1115;--panel:#171a21;--ink:#e8eaf1;--muted:#a6adbb;--line:#262a33;--prtPortH: 75px;--portGapFull:9px;--portGapHalf:8px;--portW12:60px;--portW6:60px;--reserved-bg:#555;--elm-page-bg-dark:#0f172a;--elm-page-bg-bright:#ffffff}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+*,*::before,*::after{box-sizing:border-box}
+header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:linear-gradient(180deg,#12151b,#10131a)}
+header h1{font-size:18px;margin:0;font-weight:650}
+.badge{color:var(--muted);font-size:12px;border:1px solid var(--line);padding:2px 8px;border-radius:999px}
+.wrap{position:relative;display:grid;grid-template-columns:340px 1fr 340px;gap:0;height:calc(100% - 62px)}
+@media (max-width:1024px){.wrap{grid-template-columns:1fr;height:auto}}
+aside,main{padding:16px}
+aside{border-right:1px solid var(--line);background:var(--panel)}
+main{overflow:auto;position:relative}
+#settingsPanel{border-left:1px solid var(--line);background:var(--panel);padding:16px}
+.card{background:#141821;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.card h3{margin:0 0 8px 0;font-size:14px;font-weight:650}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+.muted{color:var(--muted)}.small{font-size:12px}
+.mini{padding:4px 8px;font-size:12px;border-radius:6px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin:.5rem 0}
+.setting-row select{padding:.35rem .5rem;border-radius:.5rem}
+input[type=text],input[type=number],select{width:100%;max-width:100%;background:#0f131b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
+button,.btn{background:#11151d;color:var(--ink);border:1px solid var(--line);padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:600}
+button:hover{border-color:#2a2f3b}
+.btn-danger{border-color:#3b2222}
+.dev-rows{display:flex;flex-direction:column;gap:12px}
+.dev-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.device-wrap{display:block;width:100%}
+.device-wrap.full{grid-column:1/-1}
+.device{background:#131722;border:1px solid var(--line);border-radius:12px;padding:12px;position:relative;width:100%}
+.device-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.device-title{font-size:15px;font-weight:650;display:flex;align-items:center;gap:8px}
+.swatch{width:12px;height:12px;border-radius:3px;border:1px solid #0006;display:inline-block}
+.device-actions{display:flex;gap:6px;flex-wrap:wrap}
+.meta{font-size:12px;color:var(--muted);margin-top:2px}
+.meta .inline-controls{margin-left:8px;display:inline-flex;gap:6px}
+.ports-rows{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.port-row{display:grid;gap:var(--portGapHalf)}
+.port{height: var(--prtPortH) !important;position:relative;border:1px solid var(--line);background:#0f141d;border-radius:10px;padding:8px 6px 6px;cursor:pointer;text-align:center;user-select:none;transition:background .12s}
+.port .num{font-size:12px;margin-top:2px;min-height:1.4em}
+.port .alias{font-size:12px;margin-top:2px;min-height:1.4em; white-space: nowrap;  overflow: hidden; text-align: center;  max-width: 100%;  }
+.port .peer{margin-top:2px;font-size:12px;font-weight:700;min-height:1.4em;white-space: nowrap;  overflow: hidden; text-align: center;  max-width: 100%;}
+.port .tip{position:absolute;top:6px;right:6px;font-size:10px}
+.port.selected{}
+.port:not(.connected):not(.reserved) .num,.port:not(.connected):not(.reserved) .alias,.port:not(.connected):not(.reserved) .peer{color:#fff}
+.port.reserved .num,.port.reserved .alias,.port.reserved .peer{color:#fff!important}
+.grid-slim{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:8px;overflow:hidden;table-layout:fixed}
+.grid-slim th,.grid-slim td{font-size:13px;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grid-slim th{background:#121722;color:var(--muted);font-weight:600}
+.conn-row.highlight td{background:#1e293b }
+.conn-row td.deviceA .devName,.conn-row td.deviceB .devName{color:#fff;font-weight:400}
+.conn-row.highlight td.deviceA .devName,.conn-row.highlight td.deviceB .devName{color:var(--devColor);font-weight:700}
+.conn-row.reserved-row td{background:#121622}
+.conn-row.reserved-row:hover td{background:#151b2a}
+.color-picker-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.swatch-lg{width:24px;height:24px;border-radius:6px;border:1px solid #0006;display:inline-block}
+.color-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:#0f141d;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:600;color:var(--ink)}
+.color-btn:hover{border-color:#2a2f3b}
+.palette-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
+.palette{background:#141821;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:280px;max-width:90vw}
+.palette h4{margin:0 0 10px 0;font-size:14px}
+.palette-grid{display:grid;grid-template-columns:repeat(6,36px);gap:8px;justify-content:center}
+.chip{width:36px;height:36px;border-radius:8px;border:1px solid rgba(0,0,0,.35);cursor:pointer}
+.palette .actions{display:flex;justify-content:flex-end;margin-top:12px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:60}
+.modal{background:#141821;border:1px solid var(--line);border-radius:12px;padding:14px;min-width:300px;max-width:90vw}
+.modal h4{margin:0 0 10px 0;font-size:14px}
+.modal .row{display:flex;gap:8px;align-items:center;margin:6px 0}
+.modal label{margin:0;color:var(--ink);font-size:13px}
+.modal select{background:#0f131b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+html.theme-bright body,html.theme-bright .card,html.theme-bright aside,html.theme-bright main,html.theme-bright #settingsPanel{background:#fff!important;color:#111!important;border-color:#ccc!important;--muted: #222; }
+html.theme-bright header{background:#fff!important;border-bottom:1px solid #e5e7eb!important;color:#111!important}
+html.theme-bright header h1{color:#111!important}
+html.theme-bright header .badge{background:#fff!important;color:#444!important;border-color:#e0e6ef!important}
+html.theme-bright header button,html.theme-bright header .btn,html.theme-bright header select{background:#fff!important;color:#111!important;border:1px solid #d8dee8!important}
+html.theme-bright header button:hover,html.theme-bright header .btn:hover{border-color:#9aa4b2!important}
+html.theme-bright .device{background:#fff!important;border-color:#ccc!important}
+html.theme-bright .port:not(.connected):not(.reserved){background:#fff!important;color:#000!important}
+html.theme-bright .port:not(.connected):not(.reserved) .num,html.theme-bright .port:not(.connected):not(.reserved) .alias,html.theme-bright .port:not(.connected):not(.reserved) .peer{color:#000!important}
+html.theme-bright .port.selected{}
+html.theme-bright .port.reserved{background:#555!important;color:#fff!important}
+html.theme-bright button:not(.chip),html.theme-bright .btn,html.theme-bright input[type="text"],html.theme-bright input[type="number"],html.theme-bright select{background:#fff!important;color:#111!important;border:1px solid #ccc!important}
+html.theme-bright button:not(.chip):hover,html.theme-bright .btn:hover{border-color:#888!important}
+html.theme-bright .grid-slim th{background:#f6f7f9!important;color:#111!important;border-color:#ccc!important}
+html.theme-bright .grid-slim td{background:#fff!important;color:#111!important;border-color:#ddd!important}
+html.theme-bright .conn-row.highlight td{background:#e8f0fe!important;color:#000!important}
+html.theme-bright .conn-row.reserved-row td{background:#f1f1f1!important;color:#000!important}
+html.theme-bright .conn-row.reserved-row:hover td{background:#e0e0e0!important}
+html.theme-bright .conn-row td.deviceA .devName,html.theme-bright .conn-row td.deviceB .devName{color:#000!important;font-weight:400}
+html.theme-bright .conn-row.highlight td.deviceA .devName,html.theme-bright .conn-row.highlight td.deviceB .devName{color:var(--devColor)!important;font-weight:700}
+html.theme-bright .palette{background:#fff!important;border-color:#ccc!important;color:#000!important}
+html.theme-bright .palette h4{color:#000!important}
+html.theme-bright .palette .chip{border:1px solid rgba(0,0,0,.4)}
+html.theme-bright .modal{background:#fff!important;border:1px solid #ccc!important;color:#111!important}
+html.theme-bright .modal h4,html.theme-bright .modal label{color:#111!important}
+html.theme-bright .modal select{background:#fff!important;color:#111!important;border:1px solid #ccc!important}
+.theme-toggle{display:inline-flex;border-radius:10px;overflow:hidden}
+.theme-toggle button{padding:6px 12px;border:1px solid var(--line);background:#11151d;color:var(--ink);cursor:pointer;font-weight:600;line-height:1;border-right:none}
+.theme-toggle button:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+.theme-toggle button:last-child{border-right:1px solid var(--line);border-top-right-radius:10px;border-bottom-right-radius:10px}
+.theme-toggle button.active{box-shadow:inset 0 0 0 2px #e5e7eb}
+html.theme-bright .theme-toggle button{background:#fff;color:#111;border-color:#ccc}
+html.theme-bright .theme-toggle button:last-child{border-right-color:#ccc}
+html.theme-bright .theme-toggle button.active{box-shadow:inset 0 0 0 2px #000}
+main::-webkit-scrollbar{width:10px}
+main::-webkit-scrollbar-track{background:var(--panel)}
+main::-webkit-scrollbar-thumb{background-color:#555;border-radius:6px;border:2px solid var(--panel)}
+main::-webkit-scrollbar-thumb:hover{background-color:#777}
+main{scrollbar-width:thin;scrollbar-color:#555 var(--panel)}
+html.theme-bright main::-webkit-scrollbar-track{background:#fff!important}
+html.theme-bright main::-webkit-scrollbar-thumb{background-color:#bbb!important;border:2px solid #fff!important}
+html.theme-bright main::-webkit-scrollbar-thumb:hover{background-color:#999!important}
+html.theme-bright main{scrollbar-color:#bbb #fff!important}
 </style>
+
 </head>
 <body>
 <header>
   <h1>Ethernet Cable Connection Manager</h1>
-  <span class="badge">Offline • LocalStorage • Profiles • JSON import/export • Print</span>
+  <span class="badge">1.0.2</span>
   <div style="margin-left:auto;display:flex;gap:8px">
     <button id="printSheet">Print layout</button>
   </div>
@@ -135,7 +150,6 @@
       </div>
 
       <div class="small muted" style="margin-top:6px">
-        Profiles are separate layouts (e.g., different customers). Everything autosaves.
       </div>
     </div>
 
@@ -156,10 +170,13 @@
       </div>
       <div style="margin-top:10px;display:flex;gap:8px">
         <button id="addBtn">Add device</button>
-        <button id="clearAll" class="btn-danger" title="Delete everything">Clear all</button>
+        <button id="clearAll" class="btn-danger" title="Delete everything">Clear all devices</button>
       </div>
-      <div class="small" style="margin-top:6px">
-        Click two free ports to connect • <strong>Unlink</strong> in Connections • <span class="muted"><strong>Alt-click</strong> a port to set an alias • <strong>CTRL-click</strong> to mark as <strong>Reserved</strong>.
+      <div class="small muted" style="margin-top:6px">
+        Click two free ports to connect<br>
+		<strong>Unlink</strong> in Connections<br>
+		<strong>Alt-click</strong> a port to set an alias<br>
+		<strong>CTRL-click</strong> to mark as Reserved.
       </div>
     </div>
 
@@ -177,7 +194,7 @@
     <div class="card">
       <h3>Find connection</h3>
       <input id="searchBox" type="text" placeholder="Filter by device, port, alias, or reserved…" />
-      <div class="small muted">Filters the table below.</div>
+      <div class="small muted" style="margin-top:6px">Filters the connections table.</div>
     </div>
   </aside>
 
@@ -201,11 +218,19 @@
 <aside id="settingsPanel">
   <div class="card">
     <h3>Settings</h3>
+	<div class="setting-row" id="themeRow">
+  <label>Theme</label>
+  <div class="theme-toggle" role="group" aria-label="Theme">
+    <button type="button" id="themeDark"  data-theme="dark"   aria-pressed="false">🌙 Dark</button>
+    <button type="button" id="themeLight" data-theme="bright" aria-pressed="false">☀️ Light</button>
+  </div>
+</div>
 	<label for="maxPorts">Maximum ports per device</label>
 	<input id="maxPorts" type="number" min="0" max="9999" />
 	<div style="margin-top:10px;display:flex;gap:8px">
 	  <button id="saveSettingsBtn" class="btn">Save</button>
 	</div>
+
   </div>
 </aside>
 
@@ -254,6 +279,13 @@
         <option value="on">Dual link</option>
       </select>
     </div>
+	<div class="row" id="optNumbering">
+	  <label style="min-width:110px">Port numbering</label>
+	  <select id="layoutNumbering">
+		<option value="row">Left → Right (rows)</option>
+		<option value="column">Top ↓ Bottom (columns)</option>
+	  </select>
+	</div>
     <div class="actions">
       <button type="button" id="layoutCancel">Cancel</button>
       <button type="button" id="layoutSave">Save</button>
@@ -263,10 +295,9 @@
 
 <script>
 /* ===================== HIGHLIGHT TUNING ===================== */
-/* Change these to tweak the look instantly */
 const HI_OUTLINE = 0; // px: outer white ring (non-inset box-shadow; does not move layout)
 const HI_RING    = 5; // px: inner white ring thickness
-const HI_BLUR    = 100; // px: inner white glow blur
+const HI_BLUR    = 0; // px: inner white glow blur
 
 /* ===================== PROFILES STORAGE ===================== */
 var STORE_KEY = 'ethcm_profiles_v1';
@@ -297,11 +328,12 @@ function normalizeState(st){
   st.portAliases = st.portAliases || {};
   st.reservedPorts = st.reservedPorts || {};
   st.devices.forEach(function(d){
-    if (d.forceFullRow === undefined) d.forceFullRow = false;
-    if (d.midWrapMode === undefined) d.midWrapMode = 'balanced';
-    if (d.smallWrap === undefined) d.smallWrap = false;  // ≤12 split flag
-    if (d.dualLink === undefined) d.dualLink = false;    // dual sub-ports per port
-  });
+	  if (d.forceFullRow === undefined) d.forceFullRow = false;
+	  if (d.midWrapMode === undefined) d.midWrapMode = 'balanced';
+	  if (d.smallWrap === undefined) d.smallWrap = false;
+	  if (d.dualLink === undefined) d.dualLink = false;
+	  if (d.numbering === undefined) d.numbering = 'row';
+});
 }
 function saveStore(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){} }
 
@@ -379,23 +411,28 @@ function clearSelectionOutlines(){
 /* APPLY selection visuals: same on singles and dual halves */
 function outlineForSelection(node){
   node.classList.add('selected');
+
+  var isBright = document.documentElement.classList.contains('theme-bright');
+  var edgeClr = isBright ? '#000' : '#fff';
+  var glowClr = isBright ? 'rgba(0,0,0,.38)' : 'rgba(255,255,255,.38)';
+
   var o = HI_OUTLINE, r = HI_RING, b = HI_BLUR;
   node.style.boxShadow =
-    '0 0 0 ' + o + 'px #fff,' +
-    'inset 0 0 0 ' + r + 'px #fff,' +
-    'inset 0 0 ' + b + 'px rgba(255,255,255,.38)';
+    '0 0 0 ' + o + 'px ' + edgeClr + ',' +
+    'inset 0 0 0 ' + r + 'px ' + edgeClr + ',' +
+    'inset 0 0 ' + b + 'px ' + glowClr;
 }
 
 /* ===================== UNIFORM PORT WIDTHS (two gaps) ===================== */
 function updateUniformPortWidth(){
   var host = document.getElementById('devRows'); if(!host) return;
-  var GAP_COL = 12;  /* .dev-row column gap */
-  var PAD_BRD = 26;  /* .device L/R padding+border */
+  var GAP_COL = 12;
+  var PAD_BRD = 26;
   var gapFull = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--portGapFull')) || 9;
   var gapHalf = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--portGapHalf')) || 8;
   var Wrows = host.getBoundingClientRect().width || 800;
-  var WfullInner = Wrows - PAD_BRD;                   /* 12 cols -> 11 gaps */
-  var WhalfInner = ((Wrows - GAP_COL)/2) - PAD_BRD;   /* 6 cols  -> 5 gaps */
+  var WfullInner = Wrows - PAD_BRD;
+  var WhalfInner = ((Wrows - GAP_COL)/2) - PAD_BRD;
   var portW12 = (WfullInner - (11*gapFull)) / 12;
   var portW6  = (WhalfInner - (5*gapHalf)) / 6;
   portW12 = Math.max(40, portW12);
@@ -409,16 +446,21 @@ window.addEventListener('resize', function(){ clearTimeout(__pw_timer); __pw_tim
 /* ===================== LAYOUT RULES ===================== */
 function isFullWidthDevice(d){
   if (d.forceFullRow) return true;
-  if ((d.ports||1) >= 13) return true;                 // 13+ always full
-  if ((d.ports||1) >= 7 && !d.smallWrap) return true;  // 7–12 full unless split
-  return false;                                        // 1–6 or 7–12 split => half
+  if ((d.ports||1) >= 13) return true;
+  if ((d.ports||1) >= 7 && !d.smallWrap) return true;
+  return false;
 }
 function splitPortsIntoRows(n, dev){
+  if (n === 12 && dev.smallWrap) return [6, 6];
+
   if (n >= 12){
     if (n >= 13 && n <= 24 && dev.midWrapMode === 'balanced'){
-      var a = Math.ceil(n/2); return [Math.min(12,a), Math.min(12,n-a)];
+      var a = Math.ceil(n/2);
+      return [Math.min(12, a), Math.min(12, n - a)];
     }
-    var rows=[], rem=n; while(rem>0){ rows.push(Math.min(12, rem)); rem -= 12; } return rows;
+    var rows = [], rem = n;
+    while (rem > 0){ rows.push(Math.min(12, rem)); rem -= 12; }
+    return rows;
   }
   if (n >= 7){
     if (dev.smallWrap){ var a = Math.ceil(n/2); return [a, n - a]; }
@@ -426,6 +468,7 @@ function splitPortsIntoRows(n, dev){
   }
   return [n];
 }
+
 
 /* ===================== CONNECT SELECTION ===================== */
 var pendingPort = null;
@@ -517,10 +560,36 @@ function renderDeviceWrap(d, fullWidth){
   );
 
   var portsContainer = el('div',{class:'ports-rows'});
-  var rows = splitPortsIntoRows(d.ports||1, d);
-  var nextPortNum = 1;
+var rows = splitPortsIntoRows(d.ports||1, d);
+var total = d.ports || 1;
+var seqByRow = rows.map(function(cnt){ return new Array(cnt); });
 
-  /* helper: one clickable half (for normal OR a sub-port of a dual port) */
+function buildRowMajor(){
+  var n = 1;
+  rows.forEach(function(count, r){
+    for (var c=0; c<count; c++) seqByRow[r][c] = n++;
+  });
+}
+
+function buildColumnMajor(){
+  var maxCols = Math.max.apply(null, rows);
+  var n = 1;
+  for (var c=0; c<maxCols && n<=total; c++){
+    for (var r=0; r<rows.length && n<=total; r++){
+      if (c < rows[r]) { seqByRow[r][c] = n++; }
+    }
+  }
+  for (var r=0; r<rows.length; r++){
+    for (var c=0; c<rows[r]; c++){
+      if (seqByRow[r][c] == null) seqByRow[r][c] = n++;
+    }
+  }
+}
+
+// Choose numbering mode
+if (d.numbering === 'column') buildColumnMajor();
+else buildRowMajor();
+
   function createSubPort(d, p, sub){
     var linked = !!linkForPort(d.id, p, sub);
     var peer = linked ? getPeer(d.id,p,sub) : null;
@@ -533,13 +602,12 @@ function renderDeviceWrap(d, fullWidth){
         class:'port'+(linked?' connected':'')+(reserved?' reserved':''), 
         dataset:{deviceId:d.id, port:p, sub:(sub==null?undefined:sub)}
       },
-      el('div',{class:'tip'}, reserved ? '⟂' : (linked?'⇄':'+')),
+      el('div',{class:'tip'}, reserved ? '⟂' : (linked?'⇄':'')),
       el('div',{class:'num'}, 'Port '+p+(sub!=null ? '/'+(sub+1) : '')),
       el('div',{class:'alias'}, alias||''),
       el('div',{class:'peer'}, reserved ? (reserved||'Reserved') : (peerPort?String(peerPort):''))
     );
 
-    // Paint base colour — reserved takes precedence
     if (reserved){
       paintPortBase(node, 'var(--reserved-bg)');
     } else if (linked && peerDev){
@@ -549,7 +617,6 @@ function renderDeviceWrap(d, fullWidth){
     }
 
     node.addEventListener('click', function(ev){
-      // ALT = alias edit
       if (ev.altKey){
         var curr = aliasFor(d.id,p,sub);
         var next = prompt('Optional port label (blank to clear):', curr||'');
@@ -559,7 +626,6 @@ function renderDeviceWrap(d, fullWidth){
         saveStore(); render(); return;
       }
 
-      // CTRL = toggle reserved
       if (ev.ctrlKey){
         var k = keyFor(d.id,p,sub);
         if (state.reservedPorts && state.reservedPorts[k]){
@@ -577,7 +643,6 @@ function renderDeviceWrap(d, fullWidth){
         return;
       }
 
-      // Reserved behaves like "already linked": just highlight and stop
       if (reserved){
         clearSelectionOutlines();
         outlineForSelection(node);
@@ -586,7 +651,6 @@ function renderDeviceWrap(d, fullWidth){
         return;
       }
 
-      // If this port is already linked, highlight its link
       if (linkForPort(d.id, p, sub)) {
         clearSelectionOutlines();
         var L1 = linkForPort(d.id, p, sub);
@@ -594,7 +658,6 @@ function renderDeviceWrap(d, fullWidth){
         pendingPort = null; return;
       }
 
-      // Start or complete a connection
       if (!pendingPort){
         pendingPort = {deviceId:d.id, port:p, sub:sub};
         clearSelectionOutlines(); outlineForSelection(node);
@@ -620,7 +683,6 @@ function renderDeviceWrap(d, fullWidth){
     return node;
   }
 
-  /* helper: one grid cell (normal port, or dual link wrapper with two halves) */
   function renderPortCell(d, p){
     if (!d.dualLink) return createSubPort(d, p, null);
     var wrapCell = document.createElement('div');
@@ -642,13 +704,16 @@ function renderDeviceWrap(d, fullWidth){
     return wrapCell;
   }
 
-  rows.forEach(function(count){
-    var row = el('div',{class:'port-row'});
-    row.style.gridTemplateColumns = fullWidth ? 'repeat(12, var(--portW12))' : 'repeat(6, var(--portW6))';
-    row.style.gap = fullWidth ? 'var(--portGapFull)' : 'var(--portGapHalf)';
-    for (var i=0;i<count;i++){ var p = nextPortNum++; row.appendChild(renderPortCell(d, p)); }
-    portsContainer.appendChild(row);
-  });
+	rows.forEach(function(count, rIndex){
+	  var row = el('div',{class:'port-row'});
+	  row.style.gridTemplateColumns = fullWidth ? 'repeat(12, var(--portW12))' : 'repeat(6, var(--portW6))';
+	  row.style.gap = fullWidth ? 'var(--portGapFull)' : 'var(--portGapHalf)';
+	  for (var c=0; c<count; c++){
+		var p = seqByRow[rIndex][c];
+		row.appendChild(renderPortCell(d, p));
+	  }
+	  portsContainer.appendChild(row);
+	});
 
   var card = el('div',{class:'device', id:'dev-'+d.id}, head, meta, portsContainer);
   wrap.appendChild(card);
@@ -806,16 +871,19 @@ function openPrintSheet(includeTable){
   var when = new Date().toLocaleString();
 
   var css = ''
-+ '@page{size:A4 portrait;margin:12mm}\n'       /* default pages = portrait */
-+ '@page:first{size:A4 landscape;margin:12mm}\n'/* first page = landscape */
++ '@page{size:A4 portrait;margin:12mm}\n'
++ '@page:first{size:A4 landscape;margin:12mm}\n'
 + '*{box-sizing:border-box}\n'
 + '@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}\n'
 + '.device,.port,.dual-cell,.swatch,header{ -webkit-print-color-adjust:exact; print-color-adjust:exact }\n'
 + '.page{break-inside:avoid;page-break-inside:avoid}\n'
 + '.page + .page{break-before:page;page-break-before:always}\n'
-+ ':root{--ink:#111;--line:#ddd;--prtPortH: 70px}\n'  // ← set your single-port height here
-+ '.port{height:var(--prtPortH); overflow:hidden}\n'   // fixed height per single or sub-port
-+ '.dual-cell{display:flex;flex-direction:column}\n'   // ensure 2 stacked ports = 2x height
++ ':root{--ink:#111;--line:#ddd;--prtPortH:75px;--prtGap:0px}\n'
++ '.port{height:var(--prtPortH)!important;box-sizing:border-box;overflow:hidden;display:block}\n'
++ '.dual-cell{display:flex;flex-direction:column;gap:var(--prtGap);height:calc(var(--prtPortH)*2 + var(--prtGap))!important;box-sizing:border-box;overflow:hidden}\n'
++ '.dual-cell .port{height:var(--prtPortH)!important;border:0!important;border-radius:0!important}\n'
++ '.dual-cell .port:first-child{border-bottom:1px solid #333!important}\n'
+
   + '*{box-sizing:border-box}\n'
   + 'body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:#fff;margin:0}\n'
   + '.page{max-width:calc(297mm - 16mm);margin:10mm auto}\n'
@@ -832,7 +900,6 @@ function openPrintSheet(includeTable){
   + '.device-actions,.inline-controls{display:none!important}\n'
   + '.swatch{width:12px;height:12px;border-radius:3px;border:1px solid #0003;display:inline-block}\n'
   + '.ports-rows{display:flex;flex-direction:column;gap:8px;margin-top:10px;overflow:hidden}\n'
-  /* --- KEY: safe default grid so ports lay out horizontally even without JS --- */
   + '.port-row{display:grid;justify-content:start;align-content:start}\n'
   + '.device-wrap.full .port-row{grid-template-columns:repeat(12,minmax(40px,1fr));gap:10px !important;}\n'
   + '.device-wrap:not(.full) .port-row{grid-template-columns:repeat(6,minmax(40px,1fr));gap:7px !important;}\n'
@@ -842,14 +909,11 @@ function openPrintSheet(includeTable){
   + '.port .num{font-size:12px;font-weight:600}\n'
   + '.port .alias{font-size:11px;margin-top:2px;min-height:1.1em}\n'
   + '.port .peer{font-size:12px;font-weight:700;margin-top:4px;min-height:1.2em}\n'
-  /* UNLINKED: white + black text */
   + '.port:not(.connected):not(.reserved){background:#fff !important;border-color:#444 !important}\n'
   + '.port:not(.connected):not(.reserved) .num,'
   + '.port:not(.connected):not(.reserved) .alias,'
   + '.port:not(.connected):not(.reserved) .peer{color:#000 !important}\n'
-  /* LINKED: keep device colour; ensure readable text if your UI sets light colours */
   + '.port.connected{color:#000}\n'
-  /* RESERVED: grey #555 + white text */
   + '.port.reserved{background:#555 !important;color:#fff !important;border-color:#333 !important}\n'
   + '.dual-cell{border-color:#333 !important}\n'
   + '.port.reserved .num,.port.reserved .alias,.port.reserved .peer{color:#fff !important}\n'
@@ -864,7 +928,7 @@ function openPrintSheet(includeTable){
   + '<!doctype html><html><head><meta charset="utf-8">'
   + '<title>Ethernet Cable Connection Manager – Print</title><style>' + css + '</style></head><body>'
   + '<div class="page">'
-  + '<header><h1>Profile: ' + store.current + '</h1><div class="meta">' + 'Made using Ethernet Cable Connection Manager: <a href="https://https://github.com/bijomaru78/eccm" target="_blank">https://github.com/bijomaru78/eccm</a> on '+when+'</div></header>' 
+  + '<header><h1>Profile: ' + store.current + '</h1><div class="meta">' + 'Ethernet Cable Connection Manager: <a href="https://https://github.com/bijomaru78/eccm" target="_blank">https://github.com/bijomaru78/eccm</a> - Printed on '+when+'</div></header>' 
   + '<section id="printDevices" class="dev-rows">' + devicesHTML + '</section>'
   + (tableHTML ? '<div class="page"><h2 style="font-size:16px;margin:18px 0 8px">Connections</h2>' + tableHTML + '</div>' : '')
   + '<div class="controls" style="margin-top:12px"><button onclick="window.print()">Print</button></div>'
@@ -926,7 +990,6 @@ function render(){ renderDevices(); renderConnections(); }
 
 /* ===================== PALETTE ===================== */
 (function(){
-  /* 36 distinct colours, no greys */
   var palette = [
     '#e6194b','#3cb44b','#ffe119','#4363d8','#f58231','#911eb4',
     '#46f0f0','#f032e6','#bcf60c','#fabebe','#008080','#e6beff',
@@ -958,7 +1021,11 @@ function render(){ renderDevices(); renderConnections(); }
     var name = document.getElementById('devName').value.trim();
     var ports = Math.max(1, Math.min(9999, Number(document.getElementById('devPorts').value)||1));
     if(!name){ alert('Please enter a device name.'); return; }
-    state.devices.push({ id:uid(), name:name, ports:ports, color:chosenColor, forceFullRow:false, midWrapMode:'balanced', smallWrap:false, dualLink:false });
+    state.devices.push({
+	  id:uid(), name:name, ports:ports, color:chosenColor,
+	  forceFullRow:false, midWrapMode:'balanced', smallWrap:false, dualLink:false,
+	  numbering:'row'
+	});
     document.getElementById('devName').value=''; saveStore(); render();
   });
 })();
@@ -974,12 +1041,15 @@ function openLayoutModal(deviceId){
   var selDual = $('#layoutDualLink');
   var rowMid = $('#optMidWrap');
   var rowSmall = $('#optSmallWrap');
+  var selNumbering = $('#layoutNumbering');
+
 
   nameEl.textContent = d.name + ' ('+d.ports+' ports)';
   selFull.value = d.forceFullRow ? 'full' : 'auto';
   selMid.value = (d.midWrapMode === 'twelve') ? 'twelve' : 'balanced';
   selSmall.value = d.smallWrap ? 'split' : 'single';
   selDual.value = d.dualLink ? 'on' : 'off';
+  selNumbering.value = (d.numbering === 'column') ? 'column' : 'row';
 
   rowMid.style.display   = (d.ports>=13 && d.ports<=24) ? 'flex' : 'none';
   rowSmall.style.display = (d.ports>=7  && d.ports<=12) ? 'flex' : 'none';
@@ -990,6 +1060,7 @@ function openLayoutModal(deviceId){
     if (d.ports>=13 && d.ports<=24) d.midWrapMode = (selMid.value === 'twelve') ? 'twelve' : 'balanced';
     if (d.ports>=7  && d.ports<=12) d.smallWrap   = (selSmall.value === 'split');
     d.dualLink = (selDual.value === 'on');
+	d.numbering = (selNumbering.value === 'column') ? 'column' : 'row';
     saveStore(); backdrop.style.display='none'; render();
   };
   backdrop.style.display = 'flex';
@@ -1078,17 +1149,19 @@ document.getElementById('importProfileFile').addEventListener('change', function
       parsed.reservedPorts = parsed.reservedPorts || {};
 
       var devices = parsed.devices.map(function(d){
-        return {
-          id: d.id || uid(),
-          name: String(d.name || 'Unnamed'),
-          ports: Math.max(1, Math.min(9999, Number(d.ports)||1)),
-          color: d.color || '#888',
-          forceFullRow: !!d.forceFullRow,
-          midWrapMode: (d.midWrapMode === 'twelve' ? 'twelve' : 'balanced'),
-          smallWrap: !!d.smallWrap,
-          dualLink: !!d.dualLink
-        };
-      });
+		  return {
+			id: d.id || uid(),
+			name: String(d.name || 'Unnamed'),
+			ports: Math.max(1, Math.min(512, Number(d.ports)||1)),
+			color: d.color || '#888',
+			forceFullRow: !!d.forceFullRow,
+			midWrapMode: (d.midWrapMode === 'twelve' ? 'twelve' : 'balanced'),
+			smallWrap: !!d.smallWrap,
+			dualLink: !!d.dualLink,
+			numbering: (d.numbering === 'column' ? 'column' : 'row')
+		  };
+		});
+
       var idSet = Object.create(null); devices.forEach(function(d){ idSet[d.id]=true; });
 
       var links = (parsed.links || []).map(function(L){
@@ -1237,6 +1310,109 @@ render();
 updateUniformPortWidth();
 
 
+</script>
+
+<script>
+(function(){
+  const STORE_KEY = 'elmStore';
+
+  function safeLoad(){
+    try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); }
+    catch { return {}; }
+  }
+  function safeSave(obj){
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch {}
+  }
+
+  function getStore(){
+    const s = (window.store && typeof window.store === 'object') ? window.store : safeLoad();
+    if (!s.settings) s.settings = {};
+    if (!s.settings.theme) s.settings.theme = 'dark';
+    return s;
+  }
+
+  function applyTheme(theme){
+    document.documentElement.classList.toggle('theme-bright', theme === 'bright');
+  }
+
+  function persistTheme(theme){
+    if (window.store && typeof window.store === 'object') {
+      window.store.settings = window.store.settings || {};
+      window.store.settings.theme = theme;
+      if (typeof window.saveStore === 'function') {
+        try { window.saveStore(); } catch {}
+      } else {
+        safeSave(window.store);
+      }
+    } else {
+      const s = getStore();
+      s.settings.theme = theme;
+      safeSave(s);
+    }
+  }
+
+  function init(){
+    const store = getStore();
+    applyTheme(store.settings.theme);
+
+    var sel = document.getElementById('themeSelect');
+    if (sel){
+      sel.value = (store.settings.theme === 'bright') ? 'bright' : 'dark';
+      sel.addEventListener('change', function(){
+        const theme = sel.value;
+        applyTheme(theme);
+        persistTheme(theme);
+        if (typeof window.render === 'function') {
+          try { window.render(); } catch {}
+        }
+      });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+<script>
+(function(){
+  const LS_KEY = 'elmTheme';
+  const getTheme = () => (localStorage.getItem(LS_KEY) === 'bright' ? 'bright' : 'dark');
+  const applyTheme = (t) => document.documentElement.classList.toggle('theme-bright', t === 'bright');
+  const setTheme = (t) => { localStorage.setItem(LS_KEY, t); applyTheme(t); updateButtons(t); if (typeof window.render==='function') { try{ render(); }catch{} } };
+
+  function updateButtons(t){
+    const darkBtn  = document.getElementById('themeDark');
+    const lightBtn = document.getElementById('themeLight');
+    if(!darkBtn || !lightBtn) return;
+    const isBright = t === 'bright';
+    darkBtn.classList.toggle('active', !isBright);
+    lightBtn.classList.toggle('active', isBright);
+    darkBtn.setAttribute('aria-pressed', String(!isBright));
+    lightBtn.setAttribute('aria-pressed', String(isBright));
+  }
+
+  function wire(){
+    const darkBtn  = document.getElementById('themeDark');
+    const lightBtn = document.getElementById('themeLight');
+    if(!darkBtn || !lightBtn) return;
+
+    darkBtn.addEventListener('click',  () => setTheme('dark'));
+    lightBtn.addEventListener('click', () => setTheme('bright'));
+
+    const current = getTheme();
+    applyTheme(current);
+    updateButtons(current);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wire, { once:true });
+  } else {
+    wire();
+  }
+})();
 </script>
 </body>
 </html>
