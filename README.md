@@ -14,13 +14,13 @@ Create switches, patch panels, wall ports, routers, etc. Assign ports, connect t
 - 🎨 Colour-code devices and customise port aliases  
 - 🔌 Dual-link ports supported (patch panels, wall sockets)
 
-**_Editor:_**
+**_Editor (Dark and Light mode):_**
 
-<img src="https://github.com/bijomaru78/eccm/blob/main/eccm_screenshot.png?raw=true">
+<img src="https://github.com/bijomaru78/eccm/blob/main/eccm_ui_dark_light_animation.gif?raw=true">
 
 **_Print sheet (devices and ports):_**
 
-<img width="877" height="430" alt="image" src="https://github.com/user-attachments/assets/4501e636-4e95-4a4a-a0ed-5615fc91229b" />
+<img width="900" alt="image" src="https://github.com/user-attachments/assets/fdb68294-eeec-43c5-b5c9-0b978d6fdc28" />
 
 **_Print sheet (connections table):_**
 
