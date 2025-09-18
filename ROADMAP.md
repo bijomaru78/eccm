@@ -5,7 +5,7 @@ If something here matters to you, please open/👍 an issue so I can prioritise.
 
 ---
 
-## ✅ Shipped
+## ✅ Completed
 - Profiles: create/rename/duplicate/delete/switch
 - Export/Import single profile + Backup/Restore all profiles
 - Device layout options (full/half rows, 12+remainder / balanced, dual-link)
@@ -22,11 +22,13 @@ If something here matters to you, please open/👍 an issue so I can prioritise.
 ---
 
 ## 🧰 In progress / Next up (P0 = highest)
-- **P0 – Print layout stability**
-  - [ ] Optional “border-only colour” print mode (5px coloured border, white BG, all-black text)
-- **P1 – Manual & screenshots**
+- **P0**
+  - [ ] Port settings - additional values such as port speed and VLAN configurable via a right-click menu
+  - [ ] Hover card - select port + hover, reveal a pop-up window including all the information about the port, including the additional settings (see above)
+- **P1**
   - [ ] “Quick Start” 5-step section at top of manual
-- **P1 – UX polish**
+- **P1**
+  - [ ] Swatch colours + easier way to edit colour for existing devices
 ---
 
 ## 🎯 Short-term candidates
@@ -34,6 +36,8 @@ If something here matters to you, please open/👍 an issue so I can prioritise.
 ---
 
 ## 💡 Later / Ideas
+
+  - [ ] Visible link (line) between selected/linked ports
 
 
 - [MANUAL.md](MANUAL.md)
