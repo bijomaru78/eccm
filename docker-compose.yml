@@ -1,0 +1,7 @@
+services:
+  eccm:
+    container_name: eccm
+    image: curiouscocoon/eccm:latest
+    ports:
+      - 8000:80
+    restart: unless-stopped
