@@ -6,19 +6,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ethernet Cable Connection Manager</title>
 <style>
-:root{--bg:#0f1115;--panel:#171a21;--ink:#e8eaf1;--muted:#a6adbb;--line:#262a33;--prtPortH: 75px;--portGapFull:9px;--portGapHalf:8px;--portW12:60px;--portW6:60px;--reserved-bg:#555;--elm-page-bg-dark:#0f172a;--elm-page-bg-bright:#ffffff}
+:root{--bg:#0f1115;--panel:#171a21;--ink:#e8eaf1;--paper: #0E1117;--muted:#a6adbb;--line:#262a33;--prtPortH: 75px;--portGapFull:9px;--portGapHalf:8px;--portW12:60px;--portW6:60px;--reserved-bg:#555;--elm-page-bg-dark:#0f172a;--elm-page-bg-bright:#ffffff}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
 *,*::before,*::after{box-sizing:border-box}
 header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:linear-gradient(180deg,#12151b,#10131a)}
 header h1{font-size:18px;margin:0;font-weight:650}
 .badge{color:var(--muted);font-size:12px;border:1px solid var(--line);padding:2px 8px;border-radius:999px}
-.wrap{position:relative;display:grid;grid-template-columns:340px 1fr 340px;gap:0;height:calc(100% - 62px)}
+.wrap{position:relative;display:grid;grid-template-columns:340px 1fr;gap:0;height:calc(100% - 62px)}
 @media (max-width:1024px){.wrap{grid-template-columns:1fr;height:auto}}
 aside,main{padding:16px}
 aside{border-right:1px solid var(--line);background:var(--panel)}
 main{overflow:auto;position:relative}
-#settingsPanel{border-left:1px solid var(--line);background:var(--panel);padding:16px}
 .card{background:#141821;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
 .card h3{margin:0 0 8px 0;font-size:14px;font-weight:650}
 label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
@@ -43,14 +42,19 @@ button:hover{border-color:#2a2f3b}
 .meta .inline-controls{margin-left:8px;display:inline-flex;gap:6px}
 .ports-rows{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .port-row{display:grid;gap:var(--portGapHalf)}
-.port{height: var(--prtPortH) !important;position:relative;border:1px solid var(--line);background:#0f141d;border-radius:10px;padding:8px 6px 6px;cursor:pointer;text-align:center;user-select:none;transition:background .12s}
+.port{height: var(--prtPortH) !important;position:relative;border:1px solid var(--line);background:#0f141d;border-radius:10px;padding:4px 6px 6px;cursor:pointer;text-align:center;user-select:none;transition:background .12s}
 .port .num{font-size:12px;margin-top:2px;min-height:1.4em}
 .port .alias{font-size:12px;margin-top:2px;min-height:1.4em; white-space: nowrap;  overflow: hidden; text-align: center;  max-width: 100%;  }
 .port .peer{margin-top:2px;font-size:12px;font-weight:700;min-height:1.4em;white-space: nowrap;  overflow: hidden; text-align: center;  max-width: 100%;}
-.port .tip{position:absolute;top:6px;right:6px;font-size:10px}
 .port.selected{}
 .port:not(.connected):not(.reserved) .num,.port:not(.connected):not(.reserved) .alias,.port:not(.connected):not(.reserved) .peer{color:#fff}
 .port.reserved .num,.port.reserved .alias,.port.reserved .peer{color:#fff!important}
+.port .num{  display:inline-flex;  align-items:center;  justify-content:center;  gap:4px;  line-height:1;}
+.port .num .num-label{ line-height:1; }
+.port .ind{  width:5px; height:5px;  display:inline-block;  border-radius:1px;  background: currentColor;  opacity:.9;  line-height:0;  flex:0 0 auto;  vertical-align:middle;}
+.port .ind.vlan-diamond{ transform: rotate(45deg); }
+.port .ind.ind--off{  opacity:0;  pointer-events:none;  }
+html.theme-bright .port .ind{ opacity:.8; }
 .grid-slim{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:8px;overflow:hidden;table-layout:fixed}
 .grid-slim th,.grid-slim td{font-size:13px;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .grid-slim th{background:#121722;color:var(--muted);font-weight:600}
@@ -76,7 +80,7 @@ button:hover{border-color:#2a2f3b}
 .modal label{margin:0;color:var(--ink);font-size:13px}
 .modal select{background:#0f131b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
 .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
-html.theme-bright body,html.theme-bright .card,html.theme-bright aside,html.theme-bright main,html.theme-bright #settingsPanel{background:#fff!important;color:#111!important;border-color:#ccc!important;--muted: #222; }
+html.theme-bright body,html.theme-bright .card,html.theme-bright aside,html.theme-bright main,html.theme-bright #settingsPanel{background:#fff!important;color:#111!important;border-color:#ccc!important;--muted: #222; --paper: #fff}
 html.theme-bright header{background:#fff!important;border-bottom:1px solid #e5e7eb!important;color:#111!important}
 html.theme-bright header h1{color:#111!important}
 html.theme-bright header .badge{background:#fff!important;color:#444!important;border-color:#e0e6ef!important}
@@ -119,6 +123,33 @@ html.theme-bright main::-webkit-scrollbar-track{background:#fff!important}
 html.theme-bright main::-webkit-scrollbar-thumb{background-color:#bbb!important;border:2px solid #fff!important}
 html.theme-bright main::-webkit-scrollbar-thumb:hover{background-color:#999!important}
 html.theme-bright main{scrollbar-color:#bbb #fff!important}
+:root{  --hover-bg: #141821;  --hover-border: #2b3140;  --hover-ink: #e8eaf1;}
+html.theme-bright{  --hover-bg: #fffffe;  --hover-border: #cfd6e4;  --hover-ink: #111;}
+.hovercard{  position: fixed;  z-index: 9999;  display: none;  min-width: 220px;  max-width: 320px;  padding: 8px 10px;  font-size: 12px;  line-height: 1.3;  color: var(--hover-ink);  background: var(--hover-bg);  border: 1px solid var(--hover-border);  border-radius: 10px;  box-shadow: 0 6px 20px rgba(0,0,0,.25);  pointer-events: none;   white-space: nowrap;}
+.hovercard .hc-title{ font-weight: 700; margin-bottom: 4px; }
+.hovercard .hc-row{ display:flex; gap:8px; }
+.hovercard .hc-k{ color: var(--muted); min-width: 72px; }
+.port .spd{  display:inline-block;  margin-left:6px;  padding:1px 6px;  font-size:10px;  line-height:1.3;  border:1px solid var(--line);  border-radius:999px;  color: var(--muted);  vertical-align:middle;}
+.speed-menu{  position: fixed;  z-index: 9999;  background:#141821;  color:#e8eaf1;  border:1px solid var(--line);  border-radius:8px;  padding:6px;  box-shadow: 0 8px 24px rgba(0,0,0,.35);}
+.speed-menu select{  background:#0f131b;  color:#e8eaf1;  border:1px solid var(--line);  border-radius:6px;  padding:6px 8px;  font-size:12px;}
+html.theme-bright .speed-menu{  background:#fff;  color:#111;  border-color:#ccc;}
+html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-color:#ccc;}
+.slideover{  position: fixed;  inset: 0;  z-index: var(--z-overlay, 5000);  display: none;  font: inherit;  color: var(--ink);}
+.slideover.is-open{ display:block; }
+.slideover__backdrop{  position: absolute;  inset: 0;  background: var(--overlay, rgba(0,0,0,.35)); /* follows page; override if you have a var */  opacity: 0;  transition: opacity .2s ease;}
+.slideover.is-open .slideover__backdrop{ opacity: 1; }
+.slideover__panel{  position: absolute;  top: 0; right: 0; bottom: 0;  width: clamp(320px, 36vw, 480px);  background: var(--paper);  color: var(--ink);  border-left: 1px solid var(--line);  box-shadow: -12px 0 32px var(--elev, rgba(0,0,0,.28));  display: flex; flex-direction: column;  transform: translateX(100%);  transition: transform .25s ease;}
+.slideover.is-open .slideover__panel{ transform: translateX(0); }
+.slideover__header,
+.slideover__footer{  background: var(--paper);  color: var(--ink);  padding: 12px 16px;}
+.slideover__header{  display:flex; align-items:center; justify-content:space-between;  border-bottom: 1px solid var(--line);}
+.slideover__footer{  border-top: 1px solid var(--line);}
+.slideover__header h2{  margin: 0;  font-size: 18px;  font-weight: 600;  color: var(--ink);}
+.slideover__body{  padding: 12px 16px;  overflow: auto;  flex: 1 1 auto;  background: var(--paper);  color: var(--ink);}
+.slideover__close{  font-size: 28px; line-height: 1;  border: 0; background: transparent; color: var(--ink);  cursor: pointer;}
+@media (prefers-color-scheme: dark){  .slideover__backdrop{    background: var(--overlay-dark, rgba(0,0,0,.6));  }}
+@media (prefers-reduced-motion: reduce){  .slideover__backdrop,  .slideover__panel{ transition: none; }}
+@media print{  .slideover{ display:none !important; }
 </style>
 
 </head>
@@ -127,6 +158,7 @@ html.theme-bright main{scrollbar-color:#bbb #fff!important}
   <h1>Ethernet Cable Connection Manager</h1>
   <span class="badge">1.0.2</span>
   <div style="margin-left:auto;display:flex;gap:8px">
+	<button id="btnSettings" class="btn">Settings</button>
     <button id="printSheet">Print layout</button>
   </div>
 </header>
@@ -214,10 +246,23 @@ html.theme-bright main{scrollbar-color:#bbb #fff!important}
     </div>
   </main>
   
-<!-- Right settings sidebar -->
-<aside id="settingsPanel">
-  <div class="card">
-    <h3>Settings</h3>
+
+
+  </div>
+</aside>
+</div>
+
+<!-- Settings Slide-Over (Modal) -->
+<div id="settingsModal" class="slideover" aria-hidden="true">
+  <div class="slideover__backdrop" data-close></div>
+  <aside class="slideover__panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" tabindex="-1">
+    <header class="slideover__header">
+      <h3>Settings</h3>
+      <button class="slideover__close" title="Close (Esc)" aria-label="Close" data-close>&times;</button>
+    </header>
+
+    <div class="slideover__body" id="settingsPanelBody">
+        <div class="card">
 	<div class="setting-row" id="themeRow">
   <label>Theme</label>
   <div class="theme-toggle" role="group" aria-label="Theme">
@@ -232,10 +277,14 @@ html.theme-bright main{scrollbar-color:#bbb #fff!important}
 	</div>
 
   </div>
-</aside>
+    </div>
 
-
+    <footer class="slideover__footer">
+      <button class="btn" data-close>Close</button>
+    </footer>
+  </aside>
 </div>
+
 
 <!-- Palette -->
 <div class="palette-backdrop" id="paletteModal">
@@ -295,14 +344,14 @@ html.theme-bright main{scrollbar-color:#bbb #fff!important}
 
 <script>
 /* ===================== HIGHLIGHT TUNING ===================== */
-const HI_OUTLINE = 0; // px: outer white ring (non-inset box-shadow; does not move layout)
+const HI_OUTLINE = 0; // px: outer white ring 
 const HI_RING    = 5; // px: inner white ring thickness
 const HI_BLUR    = 0; // px: inner white glow blur
 
 /* ===================== PROFILES STORAGE ===================== */
 var STORE_KEY = 'ethcm_profiles_v1';
 var OLD_SINGLE_KEY = 'ethcm_v12';
-var defaultState = { devices: [], links: [], portAliases: {}, reservedPorts: {} };
+var defaultState = { devices: [], links: [], portAliases: {}, reservedPorts: {}, portSpeeds: {}, portVlans: {} };
 function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
 function uid(){ return 'id_' + Math.random().toString(36).slice(2,10); }
 
@@ -327,6 +376,7 @@ function normalizeState(st){
   st.links = Array.isArray(st.links) ? st.links : [];
   st.portAliases = st.portAliases || {};
   st.reservedPorts = st.reservedPorts || {};
+  st.portSpeeds = st.portSpeeds || {};
   st.devices.forEach(function(d){
 	  if (d.forceFullRow === undefined) d.forceFullRow = false;
 	  if (d.midWrapMode === undefined) d.midWrapMode = 'balanced';
@@ -385,6 +435,46 @@ function connectPorts(a,b){
   if (isReservedPort(a.deviceId,a.port,a.sub) || isReservedPort(b.deviceId,b.port,b.sub)) return false;
   var id = uid(); state.links.push({ id:id, a:a, b:b }); saveStore(); render(); highlightLink(id); return true;
 }
+function speedFor(deviceId, port, sub){
+  return (state.portSpeeds || {})[keyFor(deviceId,port,sub)] || '';
+}
+function setSpeedFor(deviceId, port, sub, val){
+  var k = keyFor(deviceId,port,sub);
+  state.portSpeeds = state.portSpeeds || {};
+  if (!val) delete state.portSpeeds[k]; else state.portSpeeds[k] = String(val);
+  saveStore();
+}
+
+function vlanFor(deviceId, port, sub){
+  var v = (state.portVlans || {})[keyFor(deviceId,port,sub)];
+  return (v==null || v==='') ? '' : Number(v);
+}
+function setVlanFor(deviceId, port, sub, val){
+  var k = keyFor(deviceId,port,sub);
+  state.portVlans = state.portVlans || {};
+  if (val==null || val==='') { delete state.portVlans[k]; }
+  else {
+    var n = Math.max(1, Math.min(4094, Number(val)||0)); // clamp 1–4094
+    state.portVlans[k] = n;
+  }
+  saveStore();
+}
+
+function fmtSpeed(val){
+  // normalize display
+  switch(String(val||'')){
+    case '100 Mbit': return '100 Mbit';
+    case '1 Gbit': return '1 Gbit';
+    case '2.5 Gbit': return '2.5 Gbit';
+    case '5 Gbit': return '5 Gbit';
+    case '10 Gbit': return '10 Gbit';
+    case '25 Gbit': return '25 Gbit';
+    case '40 Gbit': return '40 Gbit';
+    case '100 Gbit': return '100 Gbit';
+    default: return '';
+  }
+}
+
 
 /* ===================== COLOUR / SELECTION ===================== */
 function hexToRgb(hex){ var h = String(hex||'').replace('#','').trim(); if (h.length===3) h = h.split('').map(function(c){return c+c}).join(''); var n = parseInt(h,16); if (isNaN(n)||h.length!==6) return {r:15,g:20,b:29}; return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 }; }
@@ -422,6 +512,56 @@ function outlineForSelection(node){
     'inset 0 0 0 ' + r + 'px ' + edgeClr + ',' +
     'inset 0 0 ' + b + 'px ' + glowClr;
 }
+
+/* ---------- Hovercard (only shows while item is highlighted) ---------- */
+var __hoverEl = null;
+
+function hcEnsure(){
+  if (!__hoverEl){
+    __hoverEl = document.createElement('div');
+    __hoverEl.className = 'hovercard';
+    document.body.appendChild(__hoverEl);
+  }
+  return __hoverEl;
+}
+function hcHide(){ if(__hoverEl) __hoverEl.style.display = 'none'; }
+
+function hcShowForTarget(target, html, evt){
+  var el = hcEnsure();
+  el.innerHTML = html;
+  el.style.display = 'block';
+  // Position near mouse if available, else near target
+  var x = 0, y = 0;
+  if (evt && typeof evt.clientX === 'number'){
+    x = evt.clientX + 14;
+    y = evt.clientY + 12;
+  } else {
+    var r = target.getBoundingClientRect();
+    x = r.right + 12;
+    y = r.top + 8;
+  }
+  // Keep in viewport
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var ew = el.offsetWidth || 240, eh = el.offsetHeight || 100;
+  if (x + ew + 8 > vw) x = vw - ew - 8;
+  if (y + eh + 8 > vh) y = vh - eh - 8;
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+}
+
+/* Hide the hovercard whenever selection is cleared */
+const __orig_clearSel = clearSelectionOutlines;
+clearSelectionOutlines = function(){
+  hcHide();
+  return __orig_clearSel.apply(this, arguments);
+};
+/* Also hide when we un-highlight a link */
+const __orig_highlightLink = highlightLink;
+highlightLink = function(id, opts){
+  if (!id) hcHide();
+  return __orig_highlightLink.apply(this, arguments);
+};
+
 
 /* ===================== UNIFORM PORT WIDTHS (two gaps) ===================== */
 function updateUniformPortWidth(){
@@ -591,97 +731,192 @@ if (d.numbering === 'column') buildColumnMajor();
 else buildRowMajor();
 
   function createSubPort(d, p, sub){
-    var linked = !!linkForPort(d.id, p, sub);
-    var peer = linked ? getPeer(d.id,p,sub) : null;
-    var peerDev = peer ? deviceById(peer.deviceId) : null;
-    var peerPort = peer ? peer.port : null;
-    var alias = aliasFor(d.id,p,sub);
-    var reserved = reservedLabelFor(d.id,p,sub);
+  var linked   = !!linkForPort(d.id, p, sub);
+  var peer     = linked ? getPeer(d.id,p,sub) : null;
+  var peerDev  = peer ? deviceById(peer.deviceId) : null;
+  var peerPort = peer ? peer.port : null;
+  var alias    = aliasFor(d.id,p,sub);
+  var reserved = reservedLabelFor(d.id,p,sub);
 
-    var node = el('div',{
-        class:'port'+(linked?' connected':'')+(reserved?' reserved':''), 
-        dataset:{deviceId:d.id, port:p, sub:(sub==null?undefined:sub)}
-      },
-      el('div',{class:'tip'}, reserved ? '⟂' : (linked?'⇄':'')),
-      el('div',{class:'num'}, 'Port '+p+(sub!=null ? '/'+(sub+1) : '')),
-      el('div',{class:'alias'}, alias||''),
-      el('div',{class:'peer'}, reserved ? (reserved||'Reserved') : (peerPort?String(peerPort):''))
-    );
+  var rawSpeed = (typeof speedFor === 'function') ? speedFor(d.id, p, sub) : '';
+  var spdVal   = fmtSpeed(rawSpeed) || '';
+  var vlanVal  = (typeof vlanFor === 'function') ? vlanFor(d.id, p, sub) : '';
 
-    if (reserved){
-      paintPortBase(node, 'var(--reserved-bg)');
-    } else if (linked && peerDev){
-      paintPortBase(node, peerDev.color || '#22354a');
-    } else {
-      paintPortBase(node, '#0f141d');
+  var hasSpeed = (rawSpeed !== '' && rawSpeed != null);
+  var hasVlan  = (vlanVal  !== '' && vlanVal  != null);
+
+var leftInd  = el('span',{class:'ind spd-dot'}, '');
+var rightInd = el('span',{class:'ind vlan-diamond'}, '');
+
+if (hasSpeed){
+  leftInd.title = spdVal;
+} else {
+  leftInd.classList.add('ind--off');
+}
+
+if (hasVlan){
+  rightInd.title = String(vlanVal);
+} else {
+  rightInd.classList.add('ind--off');
+}
+
+var numEl = el('div',{class:'num'},
+  leftInd,
+  el('span',{class:'num-label'}, 'Port ' + p + (sub!=null ? '/'+(sub+1) : '')),
+  rightInd
+);
+
+function bindMiniHover(indEl, label, value){
+  if(!indEl || indEl.classList.contains('ind--off')) return;
+  indEl.addEventListener('mouseenter', function(e){
+    hcShowForTarget(indEl,
+      '<div class="hc-title">'+label+'</div><div>'+value+'</div>', e);
+  });
+  indEl.addEventListener('mousemove', function(e){
+    hcShowForTarget(indEl,
+      '<div class="hc-title">'+label+'</div><div>'+value+'</div>', e);
+  });
+  indEl.addEventListener('mouseleave', hcHide);
+}
+bindMiniHover(leftInd,  'Link speed', spdVal);
+bindMiniHover(rightInd, 'VLAN',  String(vlanVal));
+
+
+  var node = el('div',{
+      class:'port'+(linked?' connected':'')+(reserved?' reserved':''), 
+      dataset:{deviceId:d.id, port:p, sub:(sub==null?undefined:sub)}
+    },
+    numEl, 
+    el('div',{class:'alias'}, alias||''),
+    el('div',{class:'peer'}, reserved ? (reserved||'Reserved') : (peerPort?String(peerPort):''))
+  );
+
+  if (reserved){
+    paintPortBase(node, 'var(--reserved-bg)');
+  } else if (linked && peerDev){
+    paintPortBase(node, peerDev.color || '#22354a');
+  } else {
+    paintPortBase(node, '#0f141d');
+  }
+
+  node.addEventListener('click', function(ev){
+    if (ev.altKey){
+      var curr = aliasFor(d.id,p,sub);
+      var next = prompt('Optional port label (blank to clear):', curr||'');
+      if(next===null) return;
+      var k = keyFor(d.id,p,sub);
+      if(!next.trim()) delete state.portAliases[k]; else state.portAliases[k] = next.trim();
+      saveStore(); render(); return;
     }
 
-    node.addEventListener('click', function(ev){
-      if (ev.altKey){
-        var curr = aliasFor(d.id,p,sub);
-        var next = prompt('Optional port label (blank to clear):', curr||'');
-        if(next===null) return;
-        var k = keyFor(d.id,p,sub);
-        if(!next.trim()) delete state.portAliases[k]; else state.portAliases[k] = next.trim();
-        saveStore(); render(); return;
-      }
-
-      if (ev.ctrlKey){
-        var k = keyFor(d.id,p,sub);
-        if (state.reservedPorts && state.reservedPorts[k]){
-          if(confirm('Clear reserved status for Port '+p+(sub!=null?('/'+(sub+1)):'')+'?')){
-            delete state.reservedPorts[k];
-          }
-        } else {
-          if (!state.reservedPorts) state.reservedPorts = {};
-          var lbl = prompt('Reserved port label (e.g. WAN):', '');
-          if (lbl===null) return;
-          state.reservedPorts[k] = (lbl && lbl.trim()) ? lbl.trim() : 'Reserved';
+    if (ev.ctrlKey){
+      var k = keyFor(d.id,p,sub);
+      if (state.reservedPorts && state.reservedPorts[k]){
+        if(confirm('Clear reserved status for Port '+p+(sub!=null?('/'+(sub+1)):'')+'?')){
+          delete state.reservedPorts[k];
         }
-        pendingPort = null;
-        saveStore(); render();
-        return;
+      } else {
+        if (!state.reservedPorts) state.reservedPorts = {};
+        var lbl = prompt('Reserved port label (e.g. WAN):', '');
+        if (lbl===null) return;
+        state.reservedPorts[k] = (lbl && lbl.trim()) ? lbl.trim() : 'Reserved';
       }
-
-      if (reserved){
-        clearSelectionOutlines();
-        outlineForSelection(node);
-        highlightedLinkId = null; applyRowHighlight();
-        pendingPort = null;
-        return;
-      }
-
-      if (linkForPort(d.id, p, sub)) {
-        clearSelectionOutlines();
-        var L1 = linkForPort(d.id, p, sub);
-        highlightLink(L1.id, { from:{deviceId:d.id, port:p, sub:sub} });
-        pendingPort = null; return;
-      }
-
-      if (!pendingPort){
-        pendingPort = {deviceId:d.id, port:p, sub:sub};
-        clearSelectionOutlines(); outlineForSelection(node);
-        highlightedLinkId = null; applyRowHighlight();
-        return;
-      }
-      if (linkForPort(d.id, p, sub) || linkForPort(pendingPort.deviceId, pendingPort.port, pendingPort.sub) ||
-          isReservedPort(d.id,p,sub) || isReservedPort(pendingPort.deviceId,pendingPort.port,pendingPort.sub)){
-        alert('That port (or the previously selected one) is unavailable. Unlink/clear Reserved first.');
-        pendingPort = null; clearSelectionOutlines(); highlightLink(null); return;
-      }
-
-      var devA = deviceById(pendingPort.deviceId);
-      var devB = deviceById(d.id);
-      var msg = 'Create link:\n' + (devA?devA.name:'A') + ' Port ' + pendingPort.port + (pendingPort.sub!=null?'/'+(pendingPort.sub+1):'')
-                + ' ⇄ ' + (devB?devB.name:'B') + ' Port ' + p + (sub!=null?'/'+(sub+1):'');
-      if (!confirm(msg)){ pendingPort = null; clearSelectionOutlines(); return; }
-      var ok = connectPorts(pendingPort, {deviceId:d.id, port:p, sub:sub});
       pendingPort = null;
-      if (!ok){ alert('Could not connect.'); clearSelectionOutlines(); highlightLink(null); }
-    });
+      saveStore(); render();
+      return;
+    }
 
-    return node;
+    if (reserved){
+      clearSelectionOutlines();
+      outlineForSelection(node);
+      highlightedLinkId = null; applyRowHighlight();
+      pendingPort = null;
+      return;
+    }
+
+    if (linkForPort(d.id, p, sub)) {
+      clearSelectionOutlines();
+      var L1 = linkForPort(d.id, p, sub);
+      highlightLink(L1.id, { from:{deviceId:d.id, port:p, sub:sub} });
+      pendingPort = null; return;
+    }
+
+    if (!pendingPort){
+      pendingPort = {deviceId:d.id, port:p, sub:sub};
+      clearSelectionOutlines(); outlineForSelection(node);
+      highlightedLinkId = null; applyRowHighlight();
+      return;
+    }
+    if (linkForPort(d.id, p, sub) || linkForPort(pendingPort.deviceId, pendingPort.port, pendingPort.sub) ||
+        isReservedPort(d.id,p,sub) || isReservedPort(pendingPort.deviceId,pendingPort.port,pendingPort.sub)){
+      alert('That port (or the previously selected one) is unavailable. Unlink/clear Reserved first.');
+      pendingPort = null; clearSelectionOutlines(); highlightLink(null); return;
+    }
+
+    var devA = deviceById(pendingPort.deviceId);
+    var devB = deviceById(d.id);
+    var msg = 'Create link:\n' + (devA?devA.name:'A') + ' Port ' + pendingPort.port + (pendingPort.sub!=null?'/'+(pendingPort.sub+1):'')
+              + ' ⇄ ' + (devB?devB.name:'B') + ' Port ' + p + (sub!=null?'/'+(sub+1):'');
+    if (!confirm(msg)){ pendingPort = null; clearSelectionOutlines(); return; }
+    var ok = connectPorts(pendingPort, {deviceId:d.id, port:p, sub:sub});
+    pendingPort = null;
+    if (!ok){ alert('Could not connect.'); clearSelectionOutlines(); highlightLink(null); }
+  });
+
+  function buildHoverHTML() {
+    var liveAlias = aliasFor(d.id, p, sub) || '—';
+    var liveSpeed = (typeof speedFor === 'function' ? fmtSpeed(speedFor(d.id, p, sub)) : '') || '—';
+
+    var vlanRaw  = (typeof vlanFor==='function' ? vlanFor(d.id, p, sub) : '');
+    var vlanText = (vlanRaw === '' ? '—' : vlanRaw);
+
+    var liveReserved = typeof isReservedPort === 'function' && isReservedPort(d.id, p, sub);
+    var liveLink = linkForPort(d.id, p, sub);
+    var status = liveReserved ? 'Reserved' : (liveLink ? 'Linked' : 'Free');
+
+    var peerTxt = '—';
+    if (liveReserved) {
+      peerTxt = (typeof reservedLabelFor === 'function' && reservedLabelFor(d.id, p, sub)) || 'Reserved';
+    } else if (liveLink) {
+      var livePeer = getPeer(d.id, p, sub);
+      var livePeerDev = livePeer ? deviceById(livePeer.deviceId) : null;
+      if (livePeer && livePeerDev) {
+        peerTxt = livePeerDev.name + ' • Port ' + livePeer.port +
+                  (livePeer.sub != null ? '/' + (livePeer.sub + 1) : '');
+      }
+    }
+
+    return (
+      '<div class="hc-title">' + (d.name || 'Device') + '</div>' +
+      '<div class="hc-row"><div class="hc-k">Port</div><div>' +
+        p + (sub != null ? '/' + (sub + 1) : '') + '</div></div>' +
+      '<div class="hc-row"><div class="hc-k">Alias</div><div>' + liveAlias + '</div></div>' +
+      '<div class="hc-row"><div class="hc-k">Peer</div><div>' + peerTxt + '</div></div>'+	
+      '<div class="hc-row"><div class="hc-k">Status</div><div>' + status + '</div></div>' +
+      '<div class="hc-row"><div class="hc-k">Link speed</div><div>' + liveSpeed + '</div></div>' +
+      '<div class="hc-row"><div class="hc-k">VLAN</div><div>' + vlanText  + '</div></div>'
+    );
   }
+
+  node.addEventListener('mouseenter', function (e) {
+    if (!node.classList.contains('selected')) return;
+    hcShowForTarget(node, buildHoverHTML(), e); // fresh each time
+  });
+
+  node.addEventListener('mousemove', function (e) {
+    if (!node.classList.contains('selected')) return;
+    hcShowForTarget(node, buildHoverHTML(), e); // refresh as you move
+  });
+
+  node.addEventListener('mouseleave', function () { hcHide(); });
+
+  node.addEventListener('contextmenu', function(ev){
+    openSpeedMenu(ev, d.id, p, sub);
+  });
+
+  return node;
+}
+
 
   function renderPortCell(d, p){
     if (!d.dualLink) return createSubPort(d, p, null);
@@ -784,11 +1019,25 @@ function renderConnections(){
       if(portA) outlineForSelection(portA);
       if(portB) outlineForSelection(portB);
     });
+	
+	tr.addEventListener('mouseenter', function(e){
+  if (!tr.classList.contains('highlight')) return;
+  var html =
+    '<div class="hc-title">Connection</div>' +
+    '<div class="hc-row"><div class="hc-k">A</div><div>' + aName + ' • Port ' + L.a.port + (L.a.sub!=null?('/'+(L.a.sub+1)):'') + (aAlias?(' • '+aAlias):'') + '</div></div>' +
+    '<div class="hc-row"><div class="hc-k">B</div><div>' + bName + ' • Port ' + L.b.port + (L.b.sub!=null?('/'+(L.b.sub+1)):'') + (bAlias?(' • '+bAlias):'') + '</div></div>';
+  hcShowForTarget(tr, html, e);
+});
+tr.addEventListener('mousemove', function(e){
+  if (!tr.classList.contains('highlight')) return;
+  hcShowForTarget(tr, __hoverEl && __hoverEl.innerHTML || '', e);
+});
+tr.addEventListener('mouseleave', hcHide);
+
 
     rows.push(tr);
   });
 
-  /* Reserved ports → searchable virtual rows */
   if (state.reservedPorts){
     Object.keys(state.reservedPorts).forEach(function(k){
       var parts = k.split(':');
@@ -863,6 +1112,94 @@ function unlink(linkId){
   saveStore(); render();
 }
 
+/* ------- Speed picker (context menu) ------- */
+var __speedMenu = null;
+function closeSpeedMenu(){ if(__speedMenu){ __speedMenu.remove(); __speedMenu = null; } }
+
+function openSpeedMenu(e, deviceId, port, sub){
+  closeSpeedMenu();
+  e.preventDefault();
+
+  var curSpeed = speedFor(deviceId, port, sub) || '';
+  var curVlan  = vlanFor(deviceId, port, sub);
+  var curVlanStr = (curVlan === '' ? '' : String(curVlan));
+
+  var div = document.createElement('div');
+  div.className = 'speed-menu';
+  div.innerHTML =
+    '<div style="font-size:12px;margin-bottom:6px;font-weight:600">Port settings</div>' +
+
+    '<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:6px">' +
+      '<label for="__speedSelect" style="margin:0;white-space:nowrap;min-width:70px">Link speed</label>' +
+      '<select id="__speedSelect" style="flex:1">' +
+        '<option value="">(none)</option>' +
+        '<option>100 Mbit</option><option>1 Gbit</option><option>2.5 Gbit</option>' +
+        '<option>5 Gbit</option><option>10 Gbit</option><option>25 Gbit</option>' +
+        '<option>40 Gbit</option><option>100 Gbit</option>' +
+      '</select>' +
+    '</div>' +
+
+    '<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:8px">' +
+      '<label for="__vlanInput" style="margin:0;white-space:nowrap;min-width:70px">VLAN</label>' +
+      '<input id="__vlanInput" type="number" min="1" max="4094" step="1" placeholder="1–4094" ' +
+             'style="flex:1;padding:4px 6px;font-size:12px;border-radius:6px;border:1px solid var(--line);' +
+                    'background:var(--bg);color:var(--ink)">' +
+    '</div>' +
+
+    '<div style="display:flex;gap:6px;justify-content:flex-end">' +
+      '<button id="__speedCancel" class="btn" type="button">Cancel</button>' +
+      '<button id="__speedSave"   class="btn" type="button" style="font-weight:700">Save</button>' +
+    '</div>';
+
+  document.body.appendChild(div);
+  __speedMenu = div;
+
+  div.addEventListener('mousedown', function(ev){ ev.stopPropagation(); }, { capture:true });
+
+  var sel = div.querySelector('#__speedSelect');
+  var vin = div.querySelector('#__vlanInput');
+  sel.value = curSpeed || '';
+  vin.value = curVlanStr;
+
+  var x = e.clientX, y = e.clientY;
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var rw = 260, rh = 130;
+  if (x + rw + 8 > vw) x = vw - rw - 8;
+  if (y + rh + 8 > vh) y = vh - rh - 8;
+  div.style.left = x + 'px';
+  div.style.top  = y + 'px';
+
+  function doSave(){
+    var speedVal = sel.value || '';
+    var vlanRaw  = vin.value.trim();
+    var vlanVal  = vlanRaw === '' ? '' : Math.max(1, Math.min(4094, Number(vlanRaw) || 0));
+
+    setSpeedFor(deviceId, port, sub, speedVal);
+    setVlanFor(deviceId, port, sub, vlanVal);
+    render();
+    closeSpeedMenu();
+  }
+
+  div.querySelector('#__speedSave').addEventListener('click', doSave);
+  div.querySelector('#__speedCancel').addEventListener('click', closeSpeedMenu);
+  vin.addEventListener('keydown', function(ev){
+    if (ev.key === 'Enter') doSave();
+    if (ev.key === 'Escape') closeSpeedMenu();
+  });
+
+  setTimeout(function(){
+    function onDoc(e2){
+      if (__speedMenu && !__speedMenu.contains(e2.target)) closeSpeedMenu();
+    }
+    function onEsc(e2){ if (e2.key==='Escape') closeSpeedMenu(); }
+    document.addEventListener('mousedown', onDoc, { once:true, capture:true });
+    document.addEventListener('keydown', onEsc, { once:true });
+    window.addEventListener('wheel', closeSpeedMenu, { once:true, passive:true });
+  }, 0);
+}
+
+
+
 /* ===================== PRINT ===================== */
 function openPrintSheet(includeTable){
   var devicesHTML = document.getElementById('devRows').innerHTML;
@@ -905,7 +1242,6 @@ function openPrintSheet(includeTable){
   + '.device-wrap:not(.full) .port-row{grid-template-columns:repeat(6,minmax(40px,1fr));gap:7px !important;}\n'
   /* --------------------------------------------------------------------------- */
   + '.port{border:1px solid #333;border-radius:8px;padding:6px 3px 4px;text-align:center;grid-column:auto!important;width:auto!important}\n'
-  + '.port .tip{display:none}\n'
   + '.port .num{font-size:12px;font-weight:600}\n'
   + '.port .alias{font-size:11px;margin-top:2px;min-height:1.1em}\n'
   + '.port .peer{font-size:12px;font-weight:700;margin-top:4px;min-height:1.2em}\n'
@@ -1414,5 +1750,52 @@ updateUniformPortWidth();
   }
 })();
 </script>
+<script>
+(() => {
+  const btn = document.getElementById('btnSettings');
+  const modal = document.getElementById('settingsModal');
+  const panel = modal?.querySelector('.slideover__panel');
+  const closers = modal?.querySelectorAll('[data-close]');
+  let lastFocused = null;
+
+  function openSettings() {
+    if (!modal) return;
+    lastFocused = document.activeElement;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    // Focus the panel for accessibility
+    setTimeout(() => panel?.focus(), 0);
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('focus', trapFocus, true);
+  }
+
+  function closeSettings() {
+    if (!modal) return;
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.removeEventListener('keydown', onKey);
+    document.removeEventListener('focus', trapFocus, true);
+    if (lastFocused && typeof lastFocused.focus === 'function') {
+      lastFocused.focus();
+    }
+  }
+
+  function onKey(e) {
+    if (e.key === 'Escape') closeSettings();
+  }
+
+  function trapFocus(e) {
+    if (!modal.classList.contains('is-open')) return;
+    if (!panel.contains(e.target)) {
+      e.stopPropagation();
+      panel.focus();
+    }
+  }
+
+  btn?.addEventListener('click', openSettings);
+  closers?.forEach(el => el.addEventListener('click', closeSettings));
+})();
+</script>
+
 </body>
 </html>
