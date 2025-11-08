@@ -67,10 +67,10 @@ html.theme-bright .port .ind{ opacity:.8; }
 .swatch-lg{width:24px;height:24px;border-radius:6px;border:1px solid #0006;display:inline-block}
 .color-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:#0f141d;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:600;color:var(--ink)}
 .color-btn:hover{border-color:#2a2f3b}
-.palette-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
+.palette-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:999}
 .palette{background:#141821;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:280px;max-width:90vw}
 .palette h4{margin:0 0 10px 0;font-size:14px}
-.palette-grid{display:grid;grid-template-columns:repeat(6,36px);gap:8px;justify-content:center}
+.palette-grid{display:grid;grid-template-columns:repeat(4,36px);gap:8px;justify-content:center}
 .chip{width:36px;height:36px;border-radius:8px;border:1px solid rgba(0,0,0,.35);cursor:pointer}
 .palette .actions{display:flex;justify-content:flex-end;margin-top:12px}
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:60}
@@ -150,13 +150,20 @@ html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-col
 @media (prefers-color-scheme: dark){  .slideover__backdrop{    background: var(--overlay-dark, rgba(0,0,0,.6));  }}
 @media (prefers-reduced-motion: reduce){  .slideover__backdrop,  .slideover__panel{ transition: none; }}
 @media print{  .slideover{ display:none !important; }
+input[type=range][orient=vertical] {  appearance: slider-vertical;  width: 8px;}
+#customColorPicker input[type=range] {  margin: 0 2px;}
+#colorPreviewBox {  box-shadow: 0 0 6px rgba(0,0,0,0.4);}
+#hexOutput:focus {  outline: none;  border-color: #66ccff;}
+#hueBar {  border: 1px solid var(--line);}
+#hueMarker {  transition: top 0.1s ease;}
+#colorPreviewBox {  transition: background 0.15s ease;}
+#hexOutput {  width: 80px;  font-size: 12px;  margin-top: 4px;}
 </style>
-
 </head>
 <body>
 <header>
   <h1>Ethernet Cable Connection Manager</h1>
-  <span class="badge">1.0.3</span>
+  <span class="badge">1.0.4</span>
   <div style="margin-left:auto;display:flex;gap:8px">
 	<button id="btnSettings" class="btn">Settings</button>
     <button id="printSheet">Print layout</button>
@@ -258,20 +265,32 @@ html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-col
   <aside class="slideover__panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" tabindex="-1">
     <header class="slideover__header">
       <h3>Settings</h3>
-      <button class="slideover__close" title="Close (Esc)" aria-label="Close" data-close>&times;</button>
     </header>
 
     <div class="slideover__body" id="settingsPanelBody">
-        <div class="card">
+	
+	<div class="card">
 	<div class="setting-row" id="themeRow">
-  <label>Theme</label>
-  <div class="theme-toggle" role="group" aria-label="Theme">
-    <button type="button" id="themeDark"  data-theme="dark"   aria-pressed="false">🌙 Dark</button>
-    <button type="button" id="themeLight" data-theme="bright" aria-pressed="false">☀️ Light</button>
-  </div>
-</div>
-	<label for="maxPorts">Maximum ports per device</label>
-	<input id="maxPorts" type="number" min="0" max="9999" />
+		<label>Theme</label>
+		<div class="theme-toggle" role="group" aria-label="Theme">
+			<button type="button" id="themeDark"  data-theme="dark"   aria-pressed="false">🌙 Dark</button>
+			<button type="button" id="themeLight" data-theme="bright" aria-pressed="false">☀️ Light</button>
+		</div>
+	</div>
+	</div>
+	
+        <div class="card">
+	
+	<div class="setting-row">
+		<label for="enablePortRename">Enable Port Renaming</label>
+		<input id="enablePortRename" type="checkbox" />
+	</div>
+	<div class="setting-row">
+	  <label for="maxPorts" style="flex:1;">Maximum ports per device</label>
+	  <input id="maxPorts" type="number" min="0" max="9999" style="flex:1; max-width:120px;" />
+	</div>
+	
+	
 	<div style="margin-top:10px;display:flex;gap:8px">
 	  <button id="saveSettingsBtn" class="btn">Save</button>
 	</div>
@@ -289,10 +308,13 @@ html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-col
 <!-- Palette -->
 <div class="palette-backdrop" id="paletteModal">
   <div class="palette" role="dialog" aria-modal="true" aria-labelledby="paletteTitle">
-    <h4 id="paletteTitle">Select colour</h4>
-    <div class="palette-grid" id="paletteGrid"></div>
-    <div class="actions"><button type="button" id="paletteClose">Close</button></div>
-  </div>
+  <h4 id="paletteTitle">Select colour</h4>
+	  <div style="display:flex;gap:20px;justify-content:center;align-items:flex-start;flex-wrap:wrap">
+		<div class="palette-grid" id="paletteGrid" style="grid-template-columns:repeat(4,36px)"></div>
+	  </div>
+	  <div class="actions"><button type="button" id="paletteClose">Close</button></div>
+	</div>
+
 </div>
 
 <!-- Layout modal -->
@@ -341,6 +363,37 @@ html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-col
     </div>
   </div>
 </div>
+
+<!-- Edit Device Modal -->
+<div class="modal-backdrop" id="editDeviceModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editDeviceTitle">
+    <h4 id="editDeviceTitle">Edit Device</h4>
+
+    <div class="row">
+      <label for="editDevName" style="min-width:100px">Name</label>
+      <input id="editDevName" type="text" placeholder="Device name" />
+    </div>
+
+    <div class="row">
+      <label for="editDevPorts" style="min-width:100px">Ports</label>
+      <input id="editDevPorts" type="number" min="1" max="9999" />
+    </div>
+
+    <div class="row">
+      <label style="min-width:100px">Colour</label>
+      <div class="color-picker-row">
+        <button type="button" class="color-btn" id="editOpenPalette">Select colour</button>
+        <span id="editDevColorPreview" class="swatch swatch-lg" title="Selected colour"></span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" id="editDevCancel">Cancel</button>
+      <button type="button" id="editDevSave" class="btn">Save</button>
+    </div>
+  </div>
+</div>
+
 
 <script>
 /* ===================== HIGHLIGHT TUNING ===================== */
@@ -530,7 +583,6 @@ function hcShowForTarget(target, html, evt){
   var el = hcEnsure();
   el.innerHTML = html;
   el.style.display = 'block';
-  // Position near mouse if available, else near target
   var x = 0, y = 0;
   if (evt && typeof evt.clientX === 'number'){
     x = evt.clientX + 14;
@@ -664,15 +716,13 @@ function renderDeviceWrap(d, fullWidth){
     ),
     el('div',{class:'device-actions'},
       el('button',{title:'Layout options', onclick:function(ev){ ev.stopPropagation(); openLayoutModal(d.id); }}, 'Layout'),
-      el('button',{title:'Edit', onclick:function(ev){
-        ev.stopPropagation();
-        var newName = prompt('Device name:', d.name||''); if(newName==null || !newName.trim()) return;
-        var np = prompt('Number of ports (>=1):', String(d.ports||1)); if(np==null) return;
-        changePorts(d, Math.max(1, Math.min(9999, Number(np)||1)));
-        d.name = newName.trim();
-        var newColor = prompt('Hex colour (e.g. #E74C3C):', d.color||'#888'); if(newColor) d.color = newColor;
-        saveStore(); render();
-      }}, 'Edit'),
+		el('button', {
+		  title: 'Edit device',
+		  onclick: function (ev) {
+			ev.stopPropagation();
+			openEditDeviceModal(d.id);
+		  }
+		}, 'Edit'),
       el('button',{class:'btn-danger',title:'Delete', onclick:function(ev){
         ev.stopPropagation();
         if(!confirm('Delete "'+(d.name||'Unnamed')+'" and its links?')) return;
@@ -760,9 +810,13 @@ if (hasVlan){
   rightInd.classList.add('ind--off');
 }
 
+var portLabel = 
+  (d.portNames && d.portNames[keyFor(d.id, p, sub)]) ||
+  ('Port ' + p + (sub != null ? '/' + (sub + 1) : ''));
+
 var numEl = el('div',{class:'num'},
   leftInd,
-  el('span',{class:'num-label'}, 'Port ' + p + (sub!=null ? '/'+(sub+1) : '')),
+  el('span',{class:'num-label'}, portLabel),
   rightInd
 );
 
@@ -898,15 +952,14 @@ bindMiniHover(rightInd, 'VLAN',  String(vlanVal));
     );
   }
 
-  node.addEventListener('mouseenter', function (e) {
-    if (!node.classList.contains('selected')) return;
-    hcShowForTarget(node, buildHoverHTML(), e); // fresh each time
-  });
-
-  node.addEventListener('mousemove', function (e) {
-    if (!node.classList.contains('selected')) return;
-    hcShowForTarget(node, buildHoverHTML(), e); // refresh as you move
-  });
+	node.addEventListener('mouseenter', function (e) {
+	  if (__menuOpen || !node.classList.contains('selected')) return;
+	  hcShowForTarget(node, buildHoverHTML(), e);
+	});
+	node.addEventListener('mousemove', function (e) {
+	  if (__menuOpen || !node.classList.contains('selected')) return;
+	  hcShowForTarget(node, buildHoverHTML(), e);
+	});
 
   node.addEventListener('mouseleave', function () { hcHide(); });
 
@@ -1114,11 +1167,31 @@ function unlink(linkId){
 
 /* ------- Speed picker (context menu) ------- */
 var __speedMenu = null;
-function closeSpeedMenu(){ if(__speedMenu){ __speedMenu.remove(); __speedMenu = null; } }
+var __menuOpen = false;
+
+function closeSpeedMenu(){
+  if(__speedMenu){
+    __speedMenu.remove();
+    __speedMenu = null;
+  }
+  __menuOpen = false;
+  hcHide();
+  clearSelectionOutlines();
+}
+
 
 function openSpeedMenu(e, deviceId, port, sub){
   closeSpeedMenu();
   e.preventDefault();
+  
+  __menuOpen = true;
+  hcHide();
+  
+  clearSelectionOutlines();
+	const portEl = document.querySelector(
+	  `.port[data-device-id="${deviceId}"][data-port="${port}"]${sub != null ? `[data-sub="${sub}"]` : ''}`
+	);
+	if (portEl) outlineForSelection(portEl);
 
   var curSpeed = speedFor(deviceId, port, sub) || '';
   var curVlan  = vlanFor(deviceId, port, sub);
@@ -1129,6 +1202,25 @@ function openSpeedMenu(e, deviceId, port, sub){
   div.innerHTML =
     '<div style="font-size:12px;margin-bottom:6px;font-weight:600">Port settings</div>' +
 
+	(store.settings.enablePortRename ? (
+	  '<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:6px">' +
+		'<label for="__nameInput" style="margin:0;white-space:nowrap;min-width:70px">Port name</label>' +
+		'<input id="__nameInput" type="text" placeholder="e.g. Channel 1" ' +
+			   'style="flex:1;padding:4px 6px;font-size:12px;border-radius:6px;' +
+					  'border:1px solid var(--line);background:var(--bg);color:var(--ink)">' +
+		'<button id="__nameReset" type="button" title="Reset to default" ' +
+			   'style="padding:4px 6px;font-size:11px;border-radius:6px;border:1px solid var(--line);' +
+					  'background:var(--bg);color:var(--ink);cursor:pointer;">↺</button>' +
+	  '</div>'
+	) : '') +
+
+    '<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:6px">' +
+      '<label for="__aliasInput" style="margin:0;white-space:nowrap;min-width:70px">Alias</label>' +
+      '<input id="__aliasInput" type="text" placeholder="Alias (optional)" ' +
+             'style="flex:1;padding:4px 6px;font-size:12px;border-radius:6px;' +
+                    'border:1px solid var(--line);background:var(--bg);color:var(--ink)">' +
+    '</div>' +
+	
     '<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:6px">' +
       '<label for="__speedSelect" style="margin:0;white-space:nowrap;min-width:70px">Link speed</label>' +
       '<select id="__speedSelect" style="flex:1">' +
@@ -1155,9 +1247,26 @@ function openSpeedMenu(e, deviceId, port, sub){
   __speedMenu = div;
 
   div.addEventListener('mousedown', function(ev){ ev.stopPropagation(); }, { capture:true });
+	var nin = div.querySelector('#__nameInput');
+	if (nin) {
+	  const dev = deviceById(deviceId);
+	  const currentName =
+		(dev && dev.portNames && dev.portNames[keyFor(deviceId, port, sub)]) ||
+		('Port ' + port + (sub != null ? '/' + (sub + 1) : ''));
+	  nin.value = currentName;
+	}
+	const resetBtn = div.querySelector('#__nameReset');
+	if (resetBtn && nin) {
+	  resetBtn.addEventListener('click', () => {
+		const def = 'Port ' + port + (sub != null ? '/' + (sub + 1) : '');
+		nin.value = def;
+	  });
+	}
 
+  var ain = div.querySelector('#__aliasInput');
   var sel = div.querySelector('#__speedSelect');
   var vin = div.querySelector('#__vlanInput');
+  ain.value = aliasFor(deviceId, port, sub) || '';
   sel.value = curSpeed || '';
   vin.value = curVlanStr;
 
@@ -1170,6 +1279,19 @@ function openSpeedMenu(e, deviceId, port, sub){
   div.style.top  = y + 'px';
 
   function doSave(){
+  if (store.settings.enablePortRename && nin) {
+  var newName = nin.value.trim() || ('Port ' + port + (sub != null ? '/' + (sub + 1) : ''));
+  var dev = deviceById(deviceId);
+  if (dev) {
+    // Replace prefix only for this port label
+    dev.portNames = dev.portNames || {};
+    dev.portNames[keyFor(deviceId, port, sub)] = newName;
+  }
+}
+    var aliasRaw = ain.value.trim();
+    var aliasKey = keyFor(deviceId, port, sub);
+    if (!aliasRaw) delete state.portAliases[aliasKey];
+    else state.portAliases[aliasKey] = aliasRaw;
     var speedVal = sel.value || '';
     var vlanRaw  = vin.value.trim();
     var vlanVal  = vlanRaw === '' ? '' : Math.max(1, Math.min(4094, Number(vlanRaw) || 0));
@@ -1326,45 +1448,259 @@ function render(){ renderDevices(); renderConnections(); }
 
 /* ===================== PALETTE ===================== */
 (function(){
-  var palette = [
-    '#e6194b','#3cb44b','#ffe119','#4363d8','#f58231','#911eb4',
-    '#46f0f0','#f032e6','#bcf60c','#fabebe','#008080','#e6beff',
-    '#9a6324','#ffd8b1','#800000','#aaffc3','#808000','#ffd700',
-    '#000075','#ff4500','#da70d6','#1e90ff','#ff69b4','#7cfc00',
-    '#20b2aa','#ff6347','#32cd32','#ff7f50','#87ceeb','#ba55d3',
-    '#2e8b57','#ff8c00','#00bcd4','#8a2be2','#00fa9a','#ff1493'
-  ];
-  var modal = document.getElementById('paletteModal');
-  var grid = document.getElementById('paletteGrid');
-  var openBtn = document.getElementById('openPalette');
-  var closeBtn = document.getElementById('paletteClose');
-  var previewSidebar = document.getElementById('devColorPreview');
-  var chosenColor = '#E74C3C';
+  const palette = [
+  '#FFCDD2','#C8E6C9','#BBDEFB','#F5F5F5',
+  '#F44336','#4CAF50','#2196F3','#E0E0E0',
+  '#FF0000','#00FF00','#0000FF','#BDBDBD',
+  '#FF6F00','#FFFF00','#BF00FF','#9E9E9E',
+  '#FF9800','#FFEB3B','#9C27B0','#757575',
+  '#FFB74D','#FFF176','#BA68C8','#616161'
+]
+
+   const modal   = document.getElementById('paletteModal');
+  const grid    = document.getElementById('paletteGrid');
+  const openBtn = document.getElementById('openPalette');
+  const closeBtn= document.getElementById('paletteClose');
+  const previewSidebar = document.getElementById('devColorPreview');
+  let chosenColor = '#E74C3C';
+
   function open(){ modal.style.display='flex'; }
   function close(){ modal.style.display='none'; }
   function updatePreview(){ previewSidebar.style.background = chosenColor; }
+
+  /* ---------- RGB / HSV conversion helpers ---------- */
+  function rgbToHex(r,g,b){
+    return '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
+  }
+  function hexToRgb(hex){
+    const n = parseInt(hex.replace('#',''),16);
+    return {r:(n>>16)&255, g:(n>>8)&255, b:n&255};
+  }
+  function rgbToHsv(r, g, b) {
+    r/=255; g/=255; b/=255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    const d = max-min;
+    let h,s,v = max;
+    s = max===0 ? 0 : d/max;
+    if(max===min) h=0;
+    else {
+      switch(max){
+        case r: h=(g-b)/d + (g<b?6:0); break;
+        case g: h=(b-r)/d + 2; break;
+        case b: h=(r-g)/d + 4; break;
+      }
+      h /= 6;
+    }
+    return {h:h*360, s:s*100, v:v*100};
+  }
+  function hsvToRgb(h, s, v){
+    h/=360; s/=100; v/=100;
+    const i = Math.floor(h*6);
+    const f = h*6 - i;
+    const p = v*(1-s);
+    const q = v*(1-f*s);
+    const t = v*(1-(1-f)*s);
+    let r,g,b;
+    switch(i%6){
+      case 0: r=v; g=t; b=p; break;
+      case 1: r=q; g=v; b=p; break;
+      case 2: r=p; g=v; b=t; break;
+      case 3: r=p; g=q; b=v; break;
+      case 4: r=t; g=p; b=v; break;
+      case 5: r=v; g=p; b=q; break;
+    }
+    return {r:Math.round(r*255), g:Math.round(g*255), b:Math.round(b*255)};
+  }
+
+  /* ---------- Build palette grid ---------- */
   grid.innerHTML = '';
-  palette.forEach(function(hex){
-    var chip = document.createElement('button');
-    chip.className = 'chip';
-    chip.style.background = hex;
-    chip.title = hex;
-    chip.addEventListener('click', function(){ chosenColor = hex; updatePreview(); close(); });
+  palette.forEach(hex=>{
+    const chip = document.createElement('button');
+    chip.className='chip';
+    chip.style.background=hex;
+    chip.title=hex;
+    chip.addEventListener('click',()=>{
+      chosenColor=hex;
+      updateFromHex(hex);
+      updatePreview();
+    });
     grid.appendChild(chip);
   });
-  openBtn.addEventListener('click', open); closeBtn.addEventListener('click', close); updatePreview();
-  document.getElementById('addBtn').addEventListener('click', function(){
-    var name = document.getElementById('devName').value.trim();
-    var ports = Math.max(1, Math.min(9999, Number(document.getElementById('devPorts').value)||1));
-    if(!name){ alert('Please enter a device name.'); return; }
-    state.devices.push({
-	  id:uid(), name:name, ports:ports, color:chosenColor,
-	  forceFullRow:false, midWrapMode:'balanced', smallWrap:false, dualLink:false,
-	  numbering:'row'
+
+  /* ---------- Add custom sliders ---------- */
+const customHTML = `
+  <div id="customColorPicker"
+       style="display:grid;
+              grid-template-columns:repeat(5,1fr);
+              grid-template-rows:auto auto auto;
+              gap:12px;
+              align-items:center;
+              justify-items:center;
+              margin-left:12px;
+              margin-top:6px;">
+
+    <!-- Headers -->
+    <div style="font-size:12px;color:var(--muted)">Hue</div>
+    <div style="font-size:12px;color:var(--muted)">Sat</div>
+    <div style="font-size:12px;color:var(--muted)">R</div>
+    <div style="font-size:12px;color:var(--muted)">G</div>
+    <div style="font-size:12px;color:var(--muted)">B</div>
+
+    <!-- Sliders -->
+<div id="hueWrap"
+     style="position:relative;height:120px;width:16px;display:flex;align-items:center;justify-content:center;">
+  <!-- static hue gradient -->
+  <div id="hueBar"
+       style="position:absolute;inset:0;
+              background:linear-gradient(to top, red, yellow, lime, cyan, blue, magenta, red);
+              border-radius:6px;filter:brightness(0.9);">
+  </div>
+  <!-- moving indicator -->
+  <div id="hueMarker"
+       style="position:absolute;left:0;right:0;height:2px;background:white;
+              border-radius:1px;box-shadow:0 0 4px rgba(0,0,0,0.8);pointer-events:none;">
+  </div>
+  <!-- functional slider -->
+  <input type="range" id="hueSlider" min="0" max="360"
+         style="position:relative;z-index:5;height:120px;width:16px;
+                appearance:slider-vertical;writing-mode:bt-lr;
+                opacity:0;">
+</div>
+
+    <input type="range" id="satSlider" min="0" max="100"
+           style="height:120px;width:10px;appearance:slider-vertical;writing-mode:bt-lr;">
+    <input type="range" id="rSlider" min="0" max="255"
+           style="height:120px;width:10px;appearance:slider-vertical;writing-mode:bt-lr;">
+    <input type="range" id="gSlider" min="0" max="255"
+           style="height:120px;width:10px;appearance:slider-vertical;writing-mode:bt-lr;">
+    <input type="range" id="bSlider" min="0" max="255"
+           style="height:120px;width:10px;appearance:slider-vertical;writing-mode:bt-lr;">
+
+<!-- Preview -->
+<div id="colorPreviewBox"
+     style="grid-column:1 / span 5;
+            width:36px;height:36px;
+            border-radius:8px;
+            border:1px solid #333;
+            box-shadow:0 0 8px rgba(0,0,0,0.25);
+            margin-top:10px;"></div>
+
+<!-- Hex field (editable) -->
+<input type="text" id="hexOutput"
+       placeholder="#RRGGBB"
+       style="grid-column:1 / span 5;
+              width:110px;
+              text-align:center;
+              font-size:13px;
+              background:#0f141d;
+              border:1px solid var(--line);
+              border-radius:6px;
+              color:var(--ink);
+              padding:5px;
+              margin-top:6px;">
+
+  </div>`;
+
+
+  grid.insertAdjacentHTML('afterend', customHTML);
+
+  /* ---------- DOM refs ---------- */
+  const hSlider=document.getElementById('hueSlider');
+  const sSlider=document.getElementById('satSlider');
+  const rSlider=document.getElementById('rSlider');
+  const gSlider=document.getElementById('gSlider');
+  const bSlider=document.getElementById('bSlider');
+  const colorBox=document.getElementById('colorPreviewBox');
+  const hexOut=document.getElementById('hexOutput');
+
+  /* ---------- Core update logic ---------- */
+  function updatePreviewBox(hex){
+    colorBox.style.background=hex;
+    hexOut.value=hex.toUpperCase();
+    chosenColor=hex;
+    updatePreview();
+  }
+  
+  function updateHueMarker() {
+  const hue = +hSlider.value || 0;
+  const marker = document.getElementById('hueMarker');
+  if (!marker) return;
+  const bar = document.getElementById('hueWrap');
+  const height = bar ? bar.clientHeight : 120;
+  const pos = height - (hue / 360) * height; // invert so 0°=bottom, 360°=top
+  marker.style.top = `${pos - 1}px`;
+}
+
+
+  function updateFromRGB(){
+    const r=+rSlider.value, g=+gSlider.value, b=+bSlider.value;
+    const hex=rgbToHex(r,g,b);
+    const {h,s}=rgbToHsv(r,g,b);
+    hSlider.value=Math.round(h);
+    sSlider.value=Math.round(s);
+    updatePreviewBox(hex);
+	updateHueMarker();
+  }
+
+  function updateFromHSV(){
+    const h=+hSlider.value, s=+sSlider.value;
+    const {r,g,b}=hsvToRgb(h,s,100);
+    rSlider.value=r; gSlider.value=g; bSlider.value=b;
+    const hex=rgbToHex(r,g,b);
+    updatePreviewBox(hex);
+	updateHueMarker();
+  }
+
+  function updateFromHex(hex){
+    const {r,g,b}=hexToRgb(hex);
+    rSlider.value=r; gSlider.value=g; bSlider.value=b;
+    const {h,s}=rgbToHsv(r,g,b);
+    hSlider.value=Math.round(h);
+    sSlider.value=Math.round(s);
+    updatePreviewBox(hex);
+	updateHueMarker();
+  }
+
+  /* ---------- Events ---------- */
+  [rSlider,gSlider,bSlider].forEach(sl=>sl.addEventListener('input',updateFromRGB));
+  [hSlider,sSlider].forEach(sl=>sl.addEventListener('input',updateFromHSV));
+	hexOut.addEventListener('input', e => {
+	  const v = e.target.value.trim();
+	  // allow partial input like "#ff" without breaking live update
+	  if (/^#?[0-9A-Fa-f]{0,6}$/.test(v)) {
+		e.target.style.borderColor = 'var(--line)';
+	  } else {
+		e.target.style.borderColor = '#d33'; // red outline if invalid
+		return;
+	  }
+	  if (/^#?[0-9A-Fa-f]{6}$/.test(v)) {
+		const hex = v.startsWith('#') ? v.toUpperCase() : '#' + v.toUpperCase();
+		updateFromHex(hex);
+	  }
 	});
-    document.getElementById('devName').value=''; saveStore(); render();
+
+
+  /* ---------- Modal + Add device ---------- */
+  openBtn.addEventListener('click',open);
+  closeBtn.addEventListener('click',close);
+
+  document.getElementById('addBtn').addEventListener('click',function(){
+    const name=document.getElementById('devName').value.trim();
+    const ports=Math.max(1,Math.min(9999,Number(document.getElementById('devPorts').value)||1));
+    if(!name){alert('Please enter a device name.');return;}
+    state.devices.push({
+      id:uid(),name,ports,color:chosenColor,
+      forceFullRow:false,midWrapMode:'balanced',smallWrap:false,dualLink:false,
+      numbering:'row'
+    });
+    document.getElementById('devName').value='';
+    saveStore();render();
   });
+
+  updateFromHex(chosenColor);
+  updateHueMarker();
 })();
+
 
 /* ===================== LAYOUT MODAL ===================== */
 function openLayoutModal(deviceId){
@@ -1399,8 +1735,127 @@ function openLayoutModal(deviceId){
 	d.numbering = (selNumbering.value === 'column') ? 'column' : 'row';
     saveStore(); backdrop.style.display='none'; render();
   };
+  /* --- allow Escape key & outside click to close Layout modal --- */
+(function wireLayoutModalClose() {
+  const modal = document.getElementById('layoutModal');
+  if (!modal) return;
+
+  // Close on Escape
+  document.addEventListener('keydown', function (e) {
+    if (modal.style.display === 'flex' && e.key === 'Escape') {
+      modal.style.display = 'none';
+    }
+  });
+
+  // Close when clicking backdrop (outside the inner .modal)
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) {
+      modal.style.display = 'none';
+    }
+  });
+})();
+
   backdrop.style.display = 'flex';
 }
+
+/* ===================== EDIT DEVICE MODAL ===================== */
+let currentEditDevice = null;
+let editChosenColor = '#888';
+
+function openEditDeviceModal(deviceId) {
+  const d = deviceById(deviceId);
+  if (!d) return;
+
+  currentEditDevice = d;
+  const modal = document.getElementById('editDeviceModal');
+  const nameInput = document.getElementById('editDevName');
+  const portsInput = document.getElementById('editDevPorts');
+  const preview = document.getElementById('editDevColorPreview');
+
+  nameInput.value = d.name || '';
+  portsInput.value = d.ports || 1;
+  editChosenColor = d.color || '#888';
+  preview.style.background = editChosenColor;
+
+  modal.style.display = 'flex';
+}
+
+function closeEditDeviceModal() {
+  document.getElementById('editDeviceModal').style.display = 'none';
+  currentEditDevice = null;
+}
+
+/* --- use main palette modal for Edit Device colour selection --- */
+(function setupEditColorPicker() {
+  const paletteModal = document.getElementById('paletteModal');
+  const openBtn = document.getElementById('editOpenPalette');
+  const preview = document.getElementById('editDevColorPreview');
+  const paletteGrid = document.getElementById('paletteGrid');
+  const closeBtn = document.getElementById('paletteClose');
+  let tempTarget = null;
+
+  // open shared palette modal but record the target (edit or add)
+  openBtn.addEventListener('click', function () {
+    tempTarget = 'edit';
+    paletteModal.style.display = 'flex';
+  });
+
+  // intercept clicks in palette grid to update the correct target
+  paletteGrid.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', function () {
+      const hex = chip.title || chip.style.background;
+      if (tempTarget === 'edit') {
+        editChosenColor = hex;
+        preview.style.background = hex;
+      } else {
+        // fallback for add device
+        chosenColor = hex;
+        document.getElementById('devColorPreview').style.background = hex;
+      }
+      paletteModal.style.display = 'none';
+    });
+  });
+
+  // close palette normally
+  closeBtn.addEventListener('click', function () {
+    paletteModal.style.display = 'none';
+    tempTarget = null;
+  });
+})();
+
+
+/* --- modal buttons --- */
+document.getElementById('editDevCancel').addEventListener('click', closeEditDeviceModal);
+document.getElementById('editDevSave').addEventListener('click', function() {
+  if (!currentEditDevice) return;
+  const name = document.getElementById('editDevName').value.trim();
+  const ports = Math.max(1, Math.min(9999, Number(document.getElementById('editDevPorts').value) || 1));
+  currentEditDevice.name = name || currentEditDevice.name;
+  changePorts(currentEditDevice, ports);
+  currentEditDevice.color = editChosenColor;
+  saveStore(); render();
+  closeEditDeviceModal();
+});
+/* --- allow Escape key & outside click to close --- */
+(function wireEditModalClose() {
+  const modal = document.getElementById('editDeviceModal');
+  if (!modal) return;
+
+  // Close on Escape
+  document.addEventListener('keydown', function (e) {
+    if (modal.style.display === 'flex' && e.key === 'Escape') {
+      closeEditDeviceModal();
+    }
+  });
+
+  // Close when clicking outside the modal box
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) {
+      closeEditDeviceModal();
+    }
+  });
+})();
+
 
 /* ===================== PROFILES UI ===================== */
 function refreshProfileSelect(){
@@ -1574,9 +2029,11 @@ document.addEventListener('click', function(e){
 }, true);
 
 /* ===================== SETTINGS ===================== */
-if (!store.settings) {
-  store.settings = { maxPorts: 512 };
-}
+if (!store.settings)
+  store.settings = { maxPorts: 512, enablePortRename: false };
+
+if (store.settings.enablePortRename === undefined)
+  store.settings.enablePortRename = false;
 
 function getMaxPortsSetting() {
   return Math.max(1, Number(store.settings?.maxPorts) || 512);
@@ -1597,19 +2054,39 @@ function applySettings() {
   }
 
   const maxPortsInput = document.getElementById('maxPorts');
-  if (maxPortsInput) maxPortsInput.value = String(maxPorts);
+  if (maxPortsInput) {
+    maxPortsInput.value = String(maxPorts);
+  }
+
+  const enablePortRenameEl = document.getElementById('enablePortRename');
+  if (enablePortRenameEl) {
+    enablePortRenameEl.checked = !!store.settings.enablePortRename;
+  }
 }
 
 applySettings();
 
 const maxPortsInput = document.getElementById('maxPorts');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-if (saveSettingsBtn && maxPortsInput) {
+const enablePortRenameEl = document.getElementById('enablePortRename');
+
+if (saveSettingsBtn && maxPortsInput && enablePortRenameEl) {
   saveSettingsBtn.addEventListener('click', () => {
     const val = Math.max(1, Number(maxPortsInput.value) || 9999);
     store.settings.maxPorts = val;
+    store.settings.enablePortRename = !!enablePortRenameEl.checked;
     saveSettings();
+	
+	const modal = document.getElementById('settingsModal');
+    if (modal) {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
   });
+}
+
+if (enablePortRenameEl) {
+  enablePortRenameEl.checked = !!store.settings.enablePortRename;
 }
 
 (function clampBeforeAdd() {
@@ -1624,20 +2101,23 @@ if (saveSettingsBtn && maxPortsInput) {
     devPorts.value = String(v);
   });
 
-  addBtn.addEventListener('click', () => {
-    const maxPorts = getMaxPortsSetting();
-    let v = Math.max(1, Number(devPorts.value) || 1);
-    if (v > maxPorts) devPorts.value = String(maxPorts);
-  }, true); //
+  addBtn.addEventListener(
+    'click',
+    () => {
+      const maxPorts = getMaxPortsSetting();
+      let v = Math.max(1, Number(devPorts.value) || 1);
+      if (v > maxPorts) devPorts.value = String(maxPorts);
+    },
+    true
+  );
 })();
 
 const __orig_changePorts = changePorts;
-changePorts = function(d, newCount) {
+changePorts = function (d, newCount) {
   const maxPorts = getMaxPortsSetting();
   const clamped = Math.max(1, Math.min(maxPorts, Number(newCount) || 1));
   return __orig_changePorts(d, clamped);
 };
-
 
 /* ===================== INIT ===================== */
 function initProfilesUI(){ refreshProfileSelect(); }
@@ -1763,7 +2243,7 @@ updateUniformPortWidth();
     lastFocused = document.activeElement;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
-    // Focus the panel for accessibility
+    applySettings();
     setTimeout(() => panel?.focus(), 0);
     document.addEventListener('keydown', onKey);
     document.addEventListener('focus', trapFocus, true);
@@ -1795,8 +2275,47 @@ updateUniformPortWidth();
   btn?.addEventListener('click', openSettings);
   closers?.forEach(el => el.addEventListener('click', closeSettings));
 })();
-</script>
 
+/* ===================== UNIVERSAL ESCAPE HANDLER ===================== */
+(function modalEscapeManager() {
+  const modals = {
+    palette: document.getElementById('paletteModal'),
+    edit: document.getElementById('editDeviceModal'),
+    layout: document.getElementById('layoutModal')
+  };
+
+  function isOpen(el) {
+    return el && el.style.display === 'flex';
+  }
+
+  function closeTopmost() {
+    if (isOpen(modals.palette)) {
+      modals.palette.style.display = 'none';
+      return true;
+    }
+    if (isOpen(modals.edit)) {
+      modals.edit.style.display = 'none';
+      currentEditDevice = null;
+      return true;
+    }
+    if (isOpen(modals.layout)) {
+      modals.layout.style.display = 'none';
+      return true;
+    }
+    return false;
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      const closed = closeTopmost();
+      if (closed) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    }
+  });
+})();
+
+</script>
 </body>
 </html>
-
