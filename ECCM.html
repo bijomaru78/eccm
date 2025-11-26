@@ -1029,121 +1029,241 @@ function changePorts(d, newCount){
 }
 
 /* ===================== CONNECTIONS TABLE ===================== */
-function renderConnections(){
-  var tb = $('#connBody'); tb.innerHTML='';
-  var q = ($('#searchBox').value||'').toLowerCase().trim();
+function renderConnections() {
+  var tb = $('#connBody');
+  tb.innerHTML = '';
+
+  var q = ($('#searchBox').value || '').toLowerCase().trim();
   var rows = [];
-  state.links.forEach(function(L, i){
-    var da = deviceById(L.a.deviceId), db = deviceById(L.b.deviceId);
-    var aName = (da&&da.name)||'Unknown', bName = (db&&db.name)||'Unknown';
-    var aAlias = aliasFor(L.a.deviceId,L.a.port,L.a.sub), bAlias = aliasFor(L.b.deviceId,L.b.port,L.b.sub);
+
+  state.links.forEach(function (L, i) {
+    var da = deviceById(L.a.deviceId),
+        db = deviceById(L.b.deviceId);
+
+    var aName  = (da && da.name) || 'Unknown';
+    var bName  = (db && db.name) || 'Unknown';
+    var aAlias = aliasFor(L.a.deviceId, L.a.port, L.a.sub);
+    var bAlias = aliasFor(L.b.deviceId, L.b.port, L.b.sub);
+
+    // 🔹 Use custom port names if present, otherwise fall back to "Port X[/Y]"
+    var aPortLabel =
+      (da && da.portNames && da.portNames[keyFor(L.a.deviceId, L.a.port, L.a.sub)]) ||
+      ('Port ' + L.a.port + (L.a.sub != null ? '/' + (L.a.sub + 1) : ''));
+
+    var bPortLabel =
+      (db && db.portNames && db.portNames[keyFor(L.b.deviceId, L.b.port, L.b.sub)]) ||
+      ('Port ' + L.b.port + (L.b.sub != null ? '/' + (L.b.sub + 1) : ''));
 
     var parts = [
-      aName, 'port'+L.a.port, 'port '+L.a.port, String(L.a.port),
-      bName, 'port'+L.b.port, 'port '+L.b.port, String(L.b.port),
-      aAlias, bAlias
+      aName,
+      'port' + L.a.port,
+      'port ' + L.a.port,
+      String(L.a.port),
+      aPortLabel,         // include custom label in search
+      bName,
+      'port' + L.b.port,
+      'port ' + L.b.port,
+      String(L.b.port),
+      bPortLabel,         // include custom label in search
+      aAlias,
+      bAlias
     ];
+
     var text = parts.join(' ').toLowerCase();
-    if(q && text.indexOf(q)===-1) return;
+    if (q && text.indexOf(q) === -1) return;
 
     var aColor = da ? (da.color || '#ccc') : '#ccc';
     var bColor = db ? (db.color || '#ccc') : '#ccc';
 
-    var tr = el('tr',{class:'conn-row', dataset:{linkId:L.id}},
-      el('td',{}, String(i+1)),
-      el('td',{class:'deviceA'}, el('span',{class:'devName', style:'--devColor:'+aColor, title:aName}, aName)),
-      el('td',{}, 'Port '+L.a.port + (L.a.sub!=null?('/'+(L.a.sub+1)) : '')),
-      el('td',{}, aAlias),
-      el('td',{}, '⇄'),
-      el('td',{class:'deviceB'}, el('span',{class:'devName', style:'--devColor:'+bColor, title:bName}, bName)),
-      el('td',{}, 'Port '+L.b.port + (L.b.sub!=null?('/'+(L.b.sub+1)) : '')),
-      el('td',{}, bAlias),
-      el('td',{}, el('button',{class:'btn-danger',onclick:function(){ unlink(L.id); }},'Unlink'))
+    var tr = el(
+      'tr',
+      { class: 'conn-row', dataset: { linkId: L.id } },
+      el('td', {}, String(i + 1)),
+      el(
+        'td',
+        { class: 'deviceA' },
+        el('span', { class: 'devName', style: '--devColor:' + aColor, title: aName }, aName)
+      ),
+      el('td', {}, aPortLabel),
+      el('td', {}, aAlias),
+      el('td', {}, '⇄'),
+      el(
+        'td',
+        { class: 'deviceB' },
+        el('span', { class: 'devName', style: '--devColor:' + bColor, title: bName }, bName)
+      ),
+      el('td', {}, bPortLabel),
+      el('td', {}, bAlias),
+      el(
+        'td',
+        {},
+        el('button', { class: 'btn-danger', onclick: function () { unlink(L.id); } }, 'Unlink')
+      )
     );
 
-    tr.addEventListener('click', function(e){
-      if(e.target.tagName.toLowerCase()==='button') return;
-      if (highlightedLinkId === L.id){ highlightLink(null); clearSelectionOutlines(); return; }
+    tr.addEventListener('click', function (e) {
+      if (e.target.tagName.toLowerCase() === 'button') return;
+      if (highlightedLinkId === L.id) {
+        highlightLink(null);
+        clearSelectionOutlines();
+        return;
+      }
       highlightLink(L.id);
-      function sel(ep){ var s='.port[data-device-id="'+ep.deviceId+'"][data-port="'+ep.port+'"]'; if(ep.sub!=null) s+='[data-sub="'+ep.sub+'"]'; return s; }
+
+      function sel(ep) {
+        var s = '.port[data-device-id="' + ep.deviceId + '"][data-port="' + ep.port + '"]';
+        if (ep.sub != null) s += '[data-sub="' + ep.sub + '"]';
+        return s;
+      }
+
       clearSelectionOutlines();
       var portA = document.querySelector(sel(L.a));
       var portB = document.querySelector(sel(L.b));
-      if(portA) outlineForSelection(portA);
-      if(portB) outlineForSelection(portB);
+      if (portA) outlineForSelection(portA);
+      if (portB) outlineForSelection(portB);
     });
-	
-	tr.addEventListener('mouseenter', function(e){
-  if (!tr.classList.contains('highlight')) return;
-  var html =
-    '<div class="hc-title">Connection</div>' +
-    '<div class="hc-row"><div class="hc-k">A</div><div>' + aName + ' • Port ' + L.a.port + (L.a.sub!=null?('/'+(L.a.sub+1)):'') + (aAlias?(' • '+aAlias):'') + '</div></div>' +
-    '<div class="hc-row"><div class="hc-k">B</div><div>' + bName + ' • Port ' + L.b.port + (L.b.sub!=null?('/'+(L.b.sub+1)):'') + (bAlias?(' • '+bAlias):'') + '</div></div>';
-  hcShowForTarget(tr, html, e);
-});
-tr.addEventListener('mousemove', function(e){
-  if (!tr.classList.contains('highlight')) return;
-  hcShowForTarget(tr, __hoverEl && __hoverEl.innerHTML || '', e);
-});
-tr.addEventListener('mouseleave', hcHide);
 
+    tr.addEventListener('mouseenter', function (e) {
+      if (!tr.classList.contains('highlight')) return;
+
+      // For hover, show the same labels we show in the table
+      var html =
+        '<div class="hc-title">Connection</div>' +
+        '<div class="hc-row"><div class="hc-k">A</div><div>' +
+          aName + ' • ' + aPortLabel + (aAlias ? ' • ' + aAlias : '') +
+        '</div></div>' +
+        '<div class="hc-row"><div class="hc-k">B</div><div>' +
+          bName + ' • ' + bPortLabel + (bAlias ? ' • ' + bAlias : '') +
+        '</div></div>';
+
+      hcShowForTarget(tr, html, e);
+    });
+
+    tr.addEventListener('mousemove', function (e) {
+      if (!tr.hasAttribute('data-link-id')) return; // cheap guard, but safe
+      if (!tr.classList.contains('highlight')) return;
+      hcShowForTarget(tr, __hoverEl && __hoverEl.innerHTML || '', e);
+    });
+
+    tr.addEventListener('mouseleave', hcHide);
 
     rows.push(tr);
   });
 
-  if (state.reservedPorts){
-    Object.keys(state.reservedPorts).forEach(function(k){
+  if (state.reservedPorts) {
+    Object.keys(state.reservedPorts).forEach(function (k) {
       var parts = k.split(':');
       var devId = parts[0];
       var port  = Number(parts[1]);
       var sub   = (parts[2] === '' ? null : Number(parts[2]));
       var d     = deviceById(devId);
-      if(!d) return;
+      if (!d) return;
 
       var rLabel = state.reservedPorts[k];
       var alias  = aliasFor(devId, port, sub);
 
-      var textParts = [
-        (d && d.name)||'Unknown',
-        'port'+port, 'port '+port, String(port),
-        alias||'', rLabel||'',
-        (sub!=null ? (sub===0?'top':'bottom') : '')
-      ];
-      var text = textParts.join(' ').toLowerCase();
-      if(q && text.indexOf(q)===-1) return;
+      // 🔹 Custom name for reserved ports too
+      var reservedPortLabel =
+        (d && d.portNames && d.portNames[keyFor(devId, port, sub)]) ||
+        ('Port ' + port + (sub != null ? '/' + (sub + 1) : ''));
 
-      var tr = el('tr',{class:'conn-row reserved-row', dataset:{deviceId:devId, port:String(port), sub:(sub==null?'':String(sub))}},
-        el('td',{}, '—'),
-        el('td',{class:'deviceA'}, el('span',{class:'devName', style:'--devColor:'+(d.color||'#ccc'), title:d.name}, d.name)),
-        el('td',{}, 'Port '+port + (sub!=null?('/'+(sub+1)) : '')),
-        el('td',{}, alias || ''),
-        el('td',{}, '⟂'),
-        el('td',{class:'deviceB'}, el('span',{class:'devName', style:'--devColor:#666', title:'Reserved'}, 'Reserved')),
-        el('td',{}, '—'),
-        el('td',{}, rLabel || ''),
-        el('td',{}, el('button',{class:'btn-danger',onclick:function(){
-          delete state.reservedPorts[k];
-          saveStore(); render();
-        }}, 'Clear'))
+      var textParts = [
+        (d && d.name) || 'Unknown',
+        'port' + port,
+        'port ' + port,
+        String(port),
+        reservedPortLabel,
+        alias || '',
+        rLabel || '',
+        (sub != null ? (sub === 0 ? 'top' : 'bottom') : '')
+      ];
+
+      var text = textParts.join(' ').toLowerCase();
+      if (q && text.indexOf(q) === -1) return;
+
+      var tr = el(
+        'tr',
+        {
+          class: 'conn-row reserved-row',
+          dataset: {
+            deviceId: devId,
+            port: String(port),
+            sub: (sub == null ? '' : String(sub))
+          }
+        },
+        el('td', {}, '—'),
+        el(
+          'td',
+          { class: 'deviceA' },
+          el(
+            'span',
+            { class: 'devName', style: '--devColor:' + (d.color || '#ccc'), title: d.name },
+            d.name
+          )
+        ),
+        el('td', {}, reservedPortLabel),
+        el('td', {}, alias || ''),
+        el('td', {}, '⟂'),
+        el(
+          'td',
+          { class: 'deviceB' },
+          el(
+            'span',
+            { class: 'devName', style: '--devColor:#666', title: 'Reserved' },
+            'Reserved'
+          )
+        ),
+        el('td', {}, '—'),
+        el('td', {}, rLabel || ''),
+        el(
+          'td',
+          {},
+          el('button', {
+              class: 'btn-danger',
+              onclick: function () {
+                delete state.reservedPorts[k];
+                saveStore();
+                render();
+              }
+            },
+            'Clear'
+          )
+        )
       );
 
-      tr.addEventListener('click', function(e){
-        if(e.target.tagName.toLowerCase()==='button') return;
-        highlightedLinkId = null; applyRowHighlight(); clearSelectionOutlines();
-        var sel = '.port[data-device-id="'+devId+'"][data-port="'+port+'"]' + (sub!=null?('[data-sub="'+sub+'"]'):'');
+      tr.addEventListener('click', function (e) {
+        if (e.target.tagName.toLowerCase() === 'button') return;
+        highlightedLinkId = null;
+        applyRowHighlight();
+        clearSelectionOutlines();
+
+        var sel =
+          '.port[data-device-id="' + devId + '"][data-port="' + port + '"]' +
+          (sub != null ? '[data-sub="' + sub + '"]' : '');
+
         var n = document.querySelector(sel);
-        if(n) outlineForSelection(n);
+        if (n) outlineForSelection(n);
       });
 
       rows.push(tr);
     });
   }
 
-  if(!rows.length){
-    tb.appendChild(el('tr',{}, el('td',{colspan:'9',class:'muted'},'No connections found.')));
-  } else rows.forEach(function(r){ tb.appendChild(r); });
+  if (!rows.length) {
+    tb.appendChild(
+      el(
+        'tr',
+        {},
+        el('td', { colspan: '9', class: 'muted' }, 'No connections found.')
+      )
+    );
+  } else {
+    rows.forEach(function (r) { tb.appendChild(r); });
+  }
+
   applyRowHighlight();
 }
+	
 function applyRowHighlight(){ $all('.conn-row').forEach(function(r){ if(highlightedLinkId && r.dataset.linkId===highlightedLinkId) r.classList.add('highlight'); else r.classList.remove('highlight'); }); }
 function highlightLink(linkId, opts){
   highlightedLinkId = linkId; applyRowHighlight(); clearSelectionOutlines();
@@ -2319,3 +2439,4 @@ updateUniformPortWidth();
 </script>
 </body>
 </html>
+
