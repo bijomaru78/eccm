@@ -3,6 +3,8 @@
 A lightweight, browser-based tool for mapping Ethernet connections.  
 Create switches, patch panels, wall ports, routers, etc. Assign ports, connect them, and visualise how your network is wired.  
 
+_Featured on Best Docker Apps of September 2025 by ServersatHome on <a href="https://www.youtube.com/watch?v=b_ggjSxFNYM&t=81s" target="_blank">Youtube</a>! Thank you for sharing!_
+
 📖 **User Manual** see [MANUAL.md](MANUAL.md)
 
 📍 **Roadmap / To-Do:** see [ROADMAP.md](ROADMAP.md)
