@@ -232,6 +232,7 @@ html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-col
   <h1>Ethernet Cable Connection Manager</h1>
   <span class="badge">1.0.5</span>
   <div style="margin-left:auto;display:flex;gap:8px">
+	<button id="btnSaveConfig" class="btn">Save</button>
 	<button id="btnSettings" class="btn">Settings</button>
     <button id="printSheet">Print layout</button>
   </div>
@@ -462,8 +463,17 @@ html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-col
   </div>
 </div>
 
+<script type="module">
+import config from '../data/config.json' with { type: 'json' };
 
-<script>
+// store as a string (localStorage only stores strings)
+localStorage.setItem('ethcm_profiles_v1', JSON.stringify(config));
+
+// (optional) verify
+console.log('saved config:', JSON.parse(localStorage.getItem('ethcm_profiles_v1')));
+</script>
+
+<script type="module">
 /* ===================== HIGHLIGHT TUNING ===================== */
 const HI_OUTLINE = 0; // px: outer white ring 
 const HI_RING    = 5; // px: inner white ring thickness
@@ -2437,6 +2447,30 @@ document.getElementById('importProfileFile').addEventListener('change', function
     finally{ e.target.value=''; }
   };
   reader.readAsText(file);
+});
+
+/* ===================== SAVE FULL CONFIG TO DATA ===================== */
+document.getElementById('btnSaveConfig').addEventListener('click', async () => {
+  try {
+    // Get your config from localStorage (or build it however you want)
+    const configText = localStorage.getItem('ethcm_profiles_v1') ?? '{}';
+    const configObj = JSON.parse(configText);
+
+    const res = await fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(configObj),
+    });
+
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(`PUT /api/config failed: ${res.status} ${msg}`);
+    }
+
+    console.log('Config saved to server (config.json overwritten).');
+  } catch (err) {
+    console.error('Save failed:', err);
+  }
 });
 
 /* ===================== BACKUP / RESTORE (all profiles) ===================== */
