@@ -2,9 +2,19 @@
 <html lang="en">
 <head>
 <link type="image/png" sizes="32x32" rel="icon" href="https://img.icons8.com/stickers/32/ethernet-on.png">
+<!--<link href="/ethernet-on.png" rel="shorcut icon" />-->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ethernet Cable Connection Manager</title>
+
+
+<!-- mod lines start
+49-56 --borther device colours
+298-300 --edit colour from the color sample
+444-452 --port start from 0
+mod lines end -->
+
+
 <style>
 :root{--bg:#0f1115;--panel:#171a21;--ink:#e8eaf1;--paper: #0E1117;--muted:#a6adbb;--line:#262a33;--prtPortH: 75px;--portGapFull:9px;--portGapHalf:8px;--portW12:60px;--portW6:60px;--reserved-bg:#555;--elm-page-bg-dark:#0f172a;--elm-page-bg-bright:#ffffff}
 html,body{height:100%}
@@ -34,6 +44,18 @@ button:hover{border-color:#2a2f3b}
 .device-wrap{display:block;width:100%}
 .device-wrap.full{grid-column:1/-1}
 .device{background:#131722;border:1px solid var(--line);border-radius:12px;padding:12px;position:relative;width:100%}
+
+
+/* mod start */
+#dev-id_cdv3cv8b{border:5px solid #2b07fa}
+#dev-id_6lwovfct{border:5px solid #E74C3C}
+#dev-id_hfqletye{border:5px solid #00FF00}
+#dev-id_t4hki3cw{border:5px solid #616161}
+#dev-id_zsfgrgpn{border:5px solid #FFFF00}
+#dev-id_0p2gmiy1{border:5px solid #2196F3}
+/* mod end */
+
+
 .device-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
 .device-title{font-size:15px;font-weight:650;display:flex;align-items:center;gap:8px}
 .swatch{width:12px;height:12px;border-radius:3px;border:1px solid #0006;display:inline-block}
@@ -270,10 +292,17 @@ html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-col
         </div>
       </div>
       <label>Colour</label>
-      <div class="color-picker-row">
-        <button type="button" class="color-btn" id="openPalette">Select colour</button>
-        <span id="devColorPreview" class="swatch swatch-lg" title="Selected colour"></span>
+
+
+       <!-- mod start -->
+      <div class="color-picker-row" id="openPalette">
+        <button type="button" class="color-btn">Select colour</button>
+        <button id="devColorPreview" class="swatch swatch-lg" title="Selected colour"></button>
       </div>
+      <!-- mod end -->
+
+
+
       <div style="margin-top:10px;display:flex;gap:8px">
         <button id="addBtn">Add device</button>
         <button id="clearAll" class="btn-danger" title="Delete everything">Clear all devices</button>
@@ -410,6 +439,22 @@ html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-col
         <option value="split">Split into 2 rows</option>
       </select>
     </div>
+
+
+
+    <!-- mod start -->
+    <div class="row" id="optPortStart">
+      <label style="min-width:110px">Port Start on</label>
+      <select id="optPortStart">
+        <option value="0">0</option>
+        <option value="1">1</option>
+      </select>
+    </div>
+    <!-- mod end -->
+
+
+
+
     <div class="row" id="optDualLink">
       <label style="min-width:110px">Dual link</label>
       <select id="layoutDualLink">
@@ -2778,3 +2823,4 @@ updateUniformPortWidth();
 </script>
 </body>
 </html>
+
