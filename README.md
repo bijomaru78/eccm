@@ -4,6 +4,7 @@ A lightweight, browser-based tool for mapping Ethernet connections.
 Create switches, patch panels, wall ports, routers, etc. Assign ports, connect them, and visualise how your network is wired.  
 
 _Featured on:_<br>
+🎞️ _<a href="https://www.youtube.com/watch?v=j_T4FLumWC8" target="_blank">ECCM - Ethernet Cable Connection Manager - Clarity on Cabling by Awesome Open Source</a>_<br> 
 🎞️ _<a href="https://www.youtube.com/watch?v=b_ggjSxFNYM&t=81s" target="_blank">Best Docker Apps of September 2025 by ServersatHome</a>_<br>
 🎞️ _<a href="https://www.youtube.com/watch?v=BWz9uFSNA8A&t=1245s" target="_blank">Docker full of tools by MP Studio</a>_<br>
 _Thank you for sharing!_
