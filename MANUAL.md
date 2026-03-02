@@ -98,7 +98,7 @@ This makes it easy to track down a specific cable in larger layouts without scan
 <img align="right" width="150" alt="image" src="https://github.com/user-attachments/assets/8bc8bb52-7854-4274-ae89-5829c1501a01" />
 
 From the *Connections* table:
-- **Unlink** → break a connection between two ports  
+- **Unlink** → break a connection between two ports  (can also be cleared by **r-click > Unlink on a linked port**)
 - **Clear** → clear a Reserved port (can also be cleared by **CTRL + clicking** the reserved port again)
 
 ---

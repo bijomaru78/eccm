@@ -44,8 +44,9 @@ Grab the latest release here:
 👉 [Releases](https://github.com/bijomaru78/eccm/releases)
 
 ## 💡 Support
-This project is free and open source (GPL-3.0).  
-If it saves you time or helps in your work, consider supporting development:  
+This project is free and open source (GPL-3.0).
+It's a hobby project. I work on it in my free time, in between my family time, work and studies.
+If it saves you time or helps in your work, consider supporting my work by buying me a coffee:  
 
 <a href="https://www.buymeacoffee.com/bijomaru78" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 

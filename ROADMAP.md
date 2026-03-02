@@ -18,26 +18,23 @@ If something here matters to you, please open/👍 an issue so I can prioritise.
 - Remove 512 port limit
 - Local settings page
 - Dark/light mode switch
+- Port settings - additional values such as port speed and VLAN configurable via a right-click menu
+- Hover card - select port + hover, reveal a pop-up window including all the information about the port, including the additional settings (see above)
+- Swatch colours + easier way to edit colour for existing devices
 
 ---
 
-## 🧰 In progress / Next up (P0 = highest)
-- **P0**
-  - [ ] Port settings - additional values such as port speed and VLAN configurable via a right-click menu
-  - [ ] Hover card - select port + hover, reveal a pop-up window including all the information about the port, including the additional settings (see above)
-- **P1**
-  - [ ] “Quick Start” 5-step section at top of manual
-- **P1**
-  - [ ] Swatch colours + easier way to edit colour for existing devices
+## 🧰 In progress / Next up
+- Focusing on issues raised by the users
 ---
 
 ## 🎯 Short-term candidates
-
+- Print sheet rework
 ---
 
 ## 💡 Later / Ideas
 
-  - [ ] Visible link (line) between selected/linked ports
+  - Visible link (line) between selected/linked ports
 
 
 - [MANUAL.md](MANUAL.md)
