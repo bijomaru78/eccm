@@ -881,7 +881,7 @@ function renderDeviceWrap(d, fullWidth){
     document.createTextNode((d.ports||1)+' ports'),
     (function(){
       var c = el('span',{class:'inline-controls'},
-        el('button',{class:'mini', title:'Remove one port', onclick:function(e){ e.stopPropagation(); if ((d.ports||1) <= 1) return; changePorts(d, (d.ports||1)-1); saveStore(); render(); }}, '– Port'),
+        el('button',{class:'mini', title:'Remove one port', onclick:function(e){ e.stopPropagation(); if ((d.ports||1) <= 1) return; var newCount = (d.ports||1)-1; var affected = linksOnPortsBeingRemoved(d, newCount); if (affected.length > 0 && !confirm('Warning: The port(s) that will be removed have linked connections (' + affected.length + '). Removing the port will also remove these connections. Are you sure you want to continue?')) return; changePorts(d, newCount); saveStore(); render(); }}, '– Port'),
 		el('button',{class:'mini', title:'Add one port', onclick:function(e){ e.stopPropagation(); changePorts(d, (d.ports||1)+1); saveStore(); render(); }}, '+ Port')        
       );
       return c;
@@ -1250,6 +1250,16 @@ var peerEl = el(
 }
 
 /* ===================== CHANGE PORT COUNT ===================== */
+/** Returns links on device d that would be removed when reducing to newCount ports (port numbers > newCount). */
+function linksOnPortsBeingRemoved(d, newCount){
+  if (newCount >= (d.ports || 1)) return [];
+  return state.links.filter(function(L){
+    var aRemoved = L.a.deviceId === d.id && L.a.port > newCount;
+    var bRemoved = L.b.deviceId === d.id && L.b.port > newCount;
+    return aRemoved || bRemoved;
+  });
+}
+
 function changePorts(d, newCount){
   newCount = Math.max(1, Math.min(9999, Number(newCount)||1));
   if (newCount === d.ports) return;
@@ -2292,7 +2302,16 @@ document.getElementById('editDevSave').addEventListener('click', function() {
   const name = document.getElementById('editDevName').value.trim();
   const ports = Math.max(1, Math.min(9999, Number(document.getElementById('editDevPorts').value) || 1));
   currentEditDevice.name = name || currentEditDevice.name;
-  changePorts(currentEditDevice, ports);
+  if (ports < (currentEditDevice.ports || 1)) {
+    var affected = linksOnPortsBeingRemoved(currentEditDevice, ports);
+    if (affected.length > 0 && !confirm('Warning: The port(s) that will be removed have linked connections (' + affected.length + '). Removing the port will also remove these connections. Are you sure you want to continue?')) {
+      // user cancelled – do not change port count
+    } else {
+      changePorts(currentEditDevice, ports);
+    }
+  } else {
+    changePorts(currentEditDevice, ports);
+  }
   currentEditDevice.color = editChosenColor;
   const speedSel = document.getElementById('editDevMaxSpeed');
   currentEditDevice.maxSpeed = speedSel ? speedSel.value || null : null;
