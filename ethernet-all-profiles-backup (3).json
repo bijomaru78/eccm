@@ -1,0 +1,181 @@
+{
+  "current": "Default",
+  "profiles": {
+    "Default": {
+      "devices": [
+        {
+          "id": "id_29799ngx",
+          "name": "ONT",
+          "ports": 4,
+          "color": "#F5F5F5",
+          "forceFullRow": true,
+          "midWrapMode": "balanced",
+          "smallWrap": false,
+          "dualLink": false,
+          "numbering": "row",
+          "maxSpeed": null
+        },
+        {
+          "id": "id_cdv3cv8b",
+          "name": "pfsense",
+          "ports": 5,
+          "color": "#0000FF",
+          "forceFullRow": true,
+          "midWrapMode": "balanced",
+          "smallWrap": false,
+          "dualLink": false,
+          "numbering": "row",
+          "maxSpeed": null
+        },
+        {
+          "id": "id_6lwovfct",
+          "name": "switch cisco sg220-26",
+          "ports": 26,
+          "color": "#E74C3C",
+          "forceFullRow": false,
+          "midWrapMode": "balanced",
+          "smallWrap": false,
+          "dualLink": false,
+          "numbering": "row"
+        },
+        {
+          "id": "id_hfqletye",
+          "name": "pc",
+          "ports": 1,
+          "color": "#00FF00",
+          "forceFullRow": false,
+          "midWrapMode": "balanced",
+          "smallWrap": false,
+          "dualLink": false,
+          "numbering": "row"
+        },
+        {
+          "id": "id_t4hki3cw",
+          "name": "py",
+          "ports": 1,
+          "color": "#616161",
+          "forceFullRow": false,
+          "midWrapMode": "balanced",
+          "smallWrap": false,
+          "dualLink": false,
+          "numbering": "row",
+          "maxSpeed": null
+        },
+        {
+          "id": "id_zsfgrgpn",
+          "name": "doker",
+          "ports": 1,
+          "color": "#FFFF00",
+          "forceFullRow": false,
+          "midWrapMode": "balanced",
+          "smallWrap": false,
+          "dualLink": false,
+          "numbering": "row"
+        },
+        {
+          "id": "id_0p2gmiy1",
+          "name": "nas",
+          "ports": 1,
+          "color": "#2196F3",
+          "forceFullRow": false,
+          "midWrapMode": "balanced",
+          "smallWrap": false,
+          "dualLink": false,
+          "numbering": "row"
+        }
+      ],
+      "links": [
+        {
+          "id": "id_c2ouxxqt",
+          "a": {
+            "deviceId": "id_0p2gmiy1",
+            "port": 1,
+            "sub": null
+          },
+          "b": {
+            "deviceId": "id_6lwovfct",
+            "port": 2,
+            "sub": null
+          }
+        },
+        {
+          "id": "id_7vv01k18",
+          "a": {
+            "deviceId": "id_zsfgrgpn",
+            "port": 1,
+            "sub": null
+          },
+          "b": {
+            "deviceId": "id_6lwovfct",
+            "port": 3,
+            "sub": null
+          }
+        },
+        {
+          "id": "id_z8sdzqwz",
+          "a": {
+            "deviceId": "id_t4hki3cw",
+            "port": 1,
+            "sub": null
+          },
+          "b": {
+            "deviceId": "id_6lwovfct",
+            "port": 4,
+            "sub": null
+          }
+        },
+        {
+          "id": "id_e77mbl2b",
+          "a": {
+            "deviceId": "id_cdv3cv8b",
+            "port": 2,
+            "sub": null
+          },
+          "b": {
+            "deviceId": "id_6lwovfct",
+            "port": 1,
+            "sub": null
+          }
+        },
+        {
+          "id": "id_ma0ms9aw",
+          "a": {
+            "deviceId": "id_cdv3cv8b",
+            "port": 3,
+            "sub": null
+          },
+          "b": {
+            "deviceId": "id_hfqletye",
+            "port": 1,
+            "sub": null
+          }
+        },
+        {
+          "id": "id_ezbe36xp",
+          "a": {
+            "deviceId": "id_29799ngx",
+            "port": 1,
+            "sub": null
+          },
+          "b": {
+            "deviceId": "id_cdv3cv8b",
+            "port": 1,
+            "sub": null
+          }
+        }
+      ],
+      "portAliases": {
+        "id_cdv3cv8b:1:": "WAN"
+      },
+      "reservedPorts": {},
+      "portSpeeds": {},
+      "portVlans": {},
+      "portLinkedTo": {}
+    }
+  },
+  "settings": {
+    "maxPorts": 512,
+    "enablePortRename": false,
+    "theme": "dark"
+  }
+}
