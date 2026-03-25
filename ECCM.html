@@ -357,6 +357,19 @@ html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-col
 	  <input id="maxPorts" type="number" min="0" max="9999" style="flex:1; max-width:120px;" />
 	</div>
 	
+	<div class="setting-row">
+	  <label for="portTermMode">Port label</label>
+	  <select id="portTermMode" style="max-width:160px">
+		<option value="port">Port</option>
+		<option value="interface">Interface</option>
+		<option value="custom">Custom</option>
+	  </select>
+	</div>
+
+	<div class="setting-row" id="portTermCustomRow" style="display:none">
+	  <label for="portTermCustom" style="flex:1;">Custom label</label>
+	  <input id="portTermCustom" type="text" placeholder="e.g. Jack" style="flex:1; max-width:160px;" />
+	</div>	
 	
 	<div style="margin-top:10px;display:flex;gap:8px">
 	  <button id="saveSettingsBtn" class="btn">Save</button>
@@ -472,7 +485,15 @@ const HI_BLUR    = 0; // px: inner white glow blur
 /* ===================== PROFILES STORAGE ===================== */
 var STORE_KEY = 'ethcm_profiles_v1';
 var OLD_SINGLE_KEY = 'ethcm_v12';
-var defaultState = { devices: [], links: [], portAliases: {}, reservedPorts: {}, portSpeeds: {}, portVlans: {}, portLinkedTo: {} };
+var defaultState = {
+  devices: [],
+  links: [],
+  portAliases: {},
+  reservedPorts: {},
+  portSpeeds: {},
+  portVlans: {},
+  portLinkedToNames: {}
+};
 function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
 function uid(){ return 'id_' + Math.random().toString(36).slice(2,10); }
 
@@ -494,20 +515,38 @@ var store = (function(){
 })();
 function normalizeState(st){
   st.devices = Array.isArray(st.devices) ? st.devices : [];
-  st.links = Array.isArray(st.links) ? st.links : [];
+  st.links   = Array.isArray(st.links)   ? st.links   : [];
+
   st.portAliases = st.portAliases || {};
   st.reservedPorts = st.reservedPorts || {};
   st.portSpeeds = st.portSpeeds || {};
-  st.portLinkedTo = st.portLinkedTo || {};
-  st.devices.forEach(function(d){
-	  if (d.forceFullRow === undefined) d.forceFullRow = false;
-	  if (d.midWrapMode === undefined) d.midWrapMode = 'balanced';
-	  if (d.smallWrap === undefined) d.smallWrap = false;
-	  if (d.dualLink === undefined) d.dualLink = false;
-	  if (d.numbering === undefined) d.numbering = 'row';
-	  if (d.numbering !== 'row' && d.numbering !== 'column' && d.numbering !== 'column-bt') d.numbering = 'row';
+  st.portVlans  = st.portVlans  || {};
 
-});
+  // Safe forward-compat field (won't break anything if unused)
+  st.portLinkedToNames = st.portLinkedToNames || {};
+
+  st.devices.forEach(function(d){
+    // Device core fields
+    if (!d.id) d.id = uid();
+    if (d.name == null) d.name = 'Unnamed';
+    if (d.color == null) d.color = '#888';
+
+    // Port count
+    if (d.ports == null) d.ports = 1;
+
+    // Customer port names (per-port rename)
+    if (!d.portNames || typeof d.portNames !== 'object') d.portNames = {};
+
+    // Device max speed
+    if (d.maxSpeed === undefined) d.maxSpeed = null;
+
+    // Layout defaults
+    if (d.forceFullRow === undefined) d.forceFullRow = false;
+    if (d.midWrapMode === undefined) d.midWrapMode = 'balanced';
+    if (d.smallWrap === undefined) d.smallWrap = false;
+    if (d.dualLink === undefined) d.dualLink = false;
+    if (d.numbering === undefined) d.numbering = 'row';
+  });
 }
 function saveStore(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){} }
 
@@ -531,6 +570,110 @@ function el(tag, attrs){
 }
 function deviceById(id){ for(var i=0;i<state.devices.length;i++){ if(state.devices[i].id===id) return state.devices[i]; } return null; }
 function indexById(id){ return state.devices.findIndex(function(d){return d.id===id;}); }
+
+function parsePortKey(k){
+  // keyFor() format in ECCM is: deviceId:port:sub  (sub may be empty)
+  var parts = String(k).split(':');
+  return {
+    deviceId: parts[0],
+    port: Number(parts[1]),
+    sub: (parts.length > 2 && parts[2] !== '' ? Number(parts[2]) : null)
+  };
+}
+
+function clearManualPortName(deviceId, port, sub){
+  var d = deviceById(deviceId);
+  if (!d || !d.portNames) return false;
+
+  var k = keyFor(deviceId, port, sub);
+
+  if (k in d.portNames) {
+    delete d.portNames[k];
+
+    // If portNames becomes empty, remove it entirely (keeps storage clean)
+    if (Object.keys(d.portNames).length === 0) delete d.portNames;
+
+    saveStore();
+    return true;
+  }
+
+  return false;
+}
+
+function portLabelWithTerm(term, port, sub){
+  // term must already be "Port" / "Interface" / "Jack" etc
+  return term + ' ' + port + (sub != null ? '/' + (sub + 1) : '');
+}
+
+function getLinkForEndpoint(deviceId, port, sub){
+  sub = (sub == null ? null : sub);
+
+  for (var i = 0; i < state.links.length; i++) {
+    var L = state.links[i];
+
+    var aSub = (L.a.sub == null ? null : L.a.sub);
+    var bSub = (L.b.sub == null ? null : L.b.sub);
+
+    if (L.a.deviceId === deviceId && L.a.port === port && aSub === sub) return L;
+    if (L.b.deviceId === deviceId && L.b.port === port && bSub === sub) return L;
+  }
+  return null;
+}
+
+function purgePortNamesThatMatchTerm(term){
+  if (!term) return false;
+  var changed = false;
+
+  state.devices.forEach(function(d){
+    if (!d.portNames) return;
+
+    Object.keys(d.portNames).forEach(function(k){
+      var v = (d.portNames[k] || '').trim();
+      if (!v) return;
+
+      var info = parsePortKey(k);
+      // only purge if the saved value is exactly the default label for THAT key
+      var def = portLabelWithTerm(term, info.port, info.sub);
+
+      if (v === def) {
+        delete d.portNames[k];
+        changed = true;
+      }
+    });
+
+    // optional clean-up if object becomes empty
+    if (d.portNames && Object.keys(d.portNames).length === 0) delete d.portNames;
+  });
+
+  return changed;
+}
+
+function getPortTerm(){
+  // Defaults
+  if (!store.settings) store.settings = {};
+  var mode = store.settings.portTermMode || 'port';
+  var custom = (store.settings.portTermCustom || '').trim();
+
+  if (mode === 'interface') return 'Interface';
+  if (mode === 'custom') return custom || 'Port'; // fallback if empty
+  return 'Port';
+}
+
+// "Port 5" / "Interface 5" / "Jack 5"
+function portLabelDefault(port, sub){
+  var term = getPortTerm();
+  return term + ' ' + port + (sub != null ? '/' + (sub + 1) : '');
+}
+
+// Used in searches: "port5", "interface5", "jack5"
+function portSearchTokens(port){
+  var term = getPortTerm().toLowerCase();
+  return [
+    term + port,
+    term + ' ' + port,
+    String(port)
+  ];
+}
 
 /* ===================== LINK/RESERVED HELPERS (dual-aware) ===================== */
 function keyFor(deviceId, port, sub){ return deviceId + ':' + port + ':' + (sub==null ? '' : sub); }
@@ -591,6 +734,38 @@ function connectPorts(a, b) {
   highlightLink(id);
   return true;
 }
+
+function recalcLinkSpeedsForDevice(deviceId) {
+  const dev = deviceById(deviceId);
+  if (!dev) return;
+
+  state.links.forEach(function(L) {
+    let a = L.a;
+    let b = L.b;
+
+    // Only recalc links involving this device
+    if (a.deviceId !== deviceId && b.deviceId !== deviceId) return;
+
+    const devA = deviceById(a.deviceId);
+    const devB = deviceById(b.deviceId);
+    if (!devA || !devB) return;
+
+    const spA = speedToMbps(devA.maxSpeed);
+    const spB = speedToMbps(devB.maxSpeed);
+
+    const lowest = Math.min(spA, spB);
+
+    if (lowest !== Infinity) {
+      const label = lowest >= 1000
+        ? (lowest / 1000 + ' Gbit')
+        : (lowest + ' Mbit');
+
+      setSpeedFor(a.deviceId, a.port, a.sub, label);
+      setSpeedFor(b.deviceId, b.port, b.sub, label);
+    }
+  });
+}
+
 function speedFor(deviceId, port, sub){
   return (state.portSpeeds || {})[keyFor(deviceId,port,sub)] || '';
 }
@@ -881,8 +1056,8 @@ function renderDeviceWrap(d, fullWidth){
     document.createTextNode((d.ports||1)+' ports'),
     (function(){
       var c = el('span',{class:'inline-controls'},
-        el('button',{class:'mini', title:'Remove one port', onclick:function(e){ e.stopPropagation(); if ((d.ports||1) <= 1) return; var newCount = (d.ports||1)-1; var affected = linksOnPortsBeingRemoved(d, newCount); if (affected.length > 0 && !confirm('Warning: The port(s) that will be removed have linked connections (' + affected.length + '). Removing the port will also remove these connections. Are you sure you want to continue?')) return; changePorts(d, newCount); saveStore(); render(); }}, '– Port'),
-		el('button',{class:'mini', title:'Add one port', onclick:function(e){ e.stopPropagation(); changePorts(d, (d.ports||1)+1); saveStore(); render(); }}, '+ Port')        
+        el('button',{class:'mini', title:'Remove one port', onclick:function(e){ e.stopPropagation(); if ((d.ports||1) <= 1) return; var newCount = (d.ports||1)-1; var affected = linksOnPortsBeingRemoved(d, newCount); if (affected.length > 0 && !confirm('Warning: The port(s) that will be removed have linked connections (' + affected.length + '). Removing the port will also remove these connections. Are you sure you want to continue?')) return; changePorts(d, newCount); saveStore(); render(); }}, '– ' + getPortTerm()),
+		el('button',{class:'mini', title:'Add one port', onclick:function(e){ e.stopPropagation(); changePorts(d, (d.ports||1)+1); saveStore(); render(); }}, '+ ' + getPortTerm())      
       );
       return c;
     })()
@@ -995,11 +1170,9 @@ if (hasVlan){
   rightInd.classList.add('ind--off');
 }
 
-
-
-var portLabel = 
+var portLabel =
   (d.portNames && d.portNames[keyFor(d.id, p, sub)]) ||
-  ('Port ' + p + (sub != null ? '/' + (sub + 1) : ''));
+  portLabelDefault(p, sub);
 
 var numEl = el('div',{class:'num'},
   leftInd,
@@ -1057,7 +1230,7 @@ var defaultPeerText =
           ? (peerDev.name + ' - ' +
              (
                (peerDev.portNames && peerDev.portNames[keyFor(peer.deviceId, peerPort, peer.sub)]) ||
-               ('Port ' + peerPort + (peer.sub != null ? '/' + (peer.sub+1) : ''))
+               portLabelDefault(peerPort, peer.sub)
              )
             )
           : ''
@@ -1107,7 +1280,8 @@ var peerEl = el(
     if (ev.ctrlKey){
       var k = keyFor(d.id,p,sub);
       if (state.reservedPorts && state.reservedPorts[k]){
-        if(confirm('Clear reserved status for Port '+p+(sub!=null?('/'+(sub+1)):'')+'?')){
+		var term = getPortTerm();
+        if(confirm('Clear reserved status for ' + term + ' ' +p+(sub!=null?('/'+(sub+1)):'')+'?')){
           delete state.reservedPorts[k];
         }
       } else {
@@ -1150,7 +1324,7 @@ var peerEl = el(
 
     var devA = deviceById(pendingPort.deviceId);
     var devB = deviceById(d.id);
-    var msg = 'Create link:\n' + (devA?devA.name:'A') + ' Port ' + pendingPort.port + (pendingPort.sub!=null?'/'+(pendingPort.sub+1):'')
+    var msg = 'Create link:\n' + (devA?devA.name:'A') + getPortTerm() + pendingPort.port + (pendingPort.sub!=null?'/'+(pendingPort.sub+1):'')
               + ' ⇄ ' + (devB?devB.name:'B') + ' Port ' + p + (sub!=null?'/'+(sub+1):'');
     if (!confirm(msg)){ pendingPort = null; clearSelectionOutlines(); return; }
     var ok = connectPorts(pendingPort, {deviceId:d.id, port:p, sub:sub});
@@ -1183,7 +1357,7 @@ var peerEl = el(
 
     return (
       '<div class="hc-title">' + (d.name || 'Device') + '</div>' +
-      '<div class="hc-row"><div class="hc-k">Port</div><div>' +
+      '<div class="hc-row"><div class="hc-k">' + getPortTerm() + '</div><div>' +
         p + (sub != null ? '/' + (sub + 1) : '') + '</div></div>' +
       '<div class="hc-row"><div class="hc-k">Alias</div><div>' + liveAlias + '</div></div>' +
       '<div class="hc-row"><div class="hc-k">Peer</div><div>' + peerTxt + '</div></div>'+	
@@ -1296,26 +1470,22 @@ function renderConnections() {
     var aAlias = aliasFor(L.a.deviceId, L.a.port, L.a.sub);
     var bAlias = aliasFor(L.b.deviceId, L.b.port, L.b.sub);
 
-    // 🔹 Use custom port names if present, otherwise fall back to "Port X[/Y]"
+    // Use per-port custom name if present, otherwise fall back to the GLOBAL term ("Port/Interface/Custom")
     var aPortLabel =
       (da && da.portNames && da.portNames[keyFor(L.a.deviceId, L.a.port, L.a.sub)]) ||
-      ('Port ' + L.a.port + (L.a.sub != null ? '/' + (L.a.sub + 1) : ''));
+      portLabelDefault(L.a.port, L.a.sub);
 
     var bPortLabel =
       (db && db.portNames && db.portNames[keyFor(L.b.deviceId, L.b.port, L.b.sub)]) ||
-      ('Port ' + L.b.port + (L.b.sub != null ? '/' + (L.b.sub + 1) : ''));
+      portLabelDefault(L.b.port, L.b.sub);
 
     var parts = [
       aName,
-      'port' + L.a.port,
-      'port ' + L.a.port,
-      String(L.a.port),
-      aPortLabel,         // include custom label in search
+      ...portSearchTokens(L.a.port),
+      aPortLabel,
       bName,
-      'port' + L.b.port,
-      'port ' + L.b.port,
-      String(L.b.port),
-      bPortLabel,         // include custom label in search
+      ...portSearchTokens(L.b.port),
+      bPortLabel,
       aAlias,
       bAlias
     ];
@@ -1377,7 +1547,6 @@ function renderConnections() {
     tr.addEventListener('mouseenter', function (e) {
       if (!tr.classList.contains('highlight')) return;
 
-      // For hover, show the same labels we show in the table
       var html =
         '<div class="hc-title">Connection</div>' +
         '<div class="hc-row"><div class="hc-k">A</div><div>' +
@@ -1391,7 +1560,7 @@ function renderConnections() {
     });
 
     tr.addEventListener('mousemove', function (e) {
-      if (!tr.hasAttribute('data-link-id')) return; // cheap guard, but safe
+      if (!tr.hasAttribute('data-link-id')) return;
       if (!tr.classList.contains('highlight')) return;
       hcShowForTarget(tr, __hoverEl && __hoverEl.innerHTML || '', e);
     });
@@ -1401,6 +1570,7 @@ function renderConnections() {
     rows.push(tr);
   });
 
+  // Reserved rows
   if (state.reservedPorts) {
     Object.keys(state.reservedPorts).forEach(function (k) {
       var parts = k.split(':');
@@ -1413,16 +1583,13 @@ function renderConnections() {
       var rLabel = state.reservedPorts[k];
       var alias  = aliasFor(devId, port, sub);
 
-      // 🔹 Custom name for reserved ports too
       var reservedPortLabel =
         (d && d.portNames && d.portNames[keyFor(devId, port, sub)]) ||
-        ('Port ' + port + (sub != null ? '/' + (sub + 1) : ''));
+        portLabelDefault(port, sub);
 
       var textParts = [
         (d && d.name) || 'Unknown',
-        'port' + port,
-        'port ' + port,
-        String(port),
+        ...portSearchTokens(port),
         reservedPortLabel,
         alias || '',
         rLabel || '',
@@ -1550,7 +1717,6 @@ function closeSpeedMenu(){
   clearSelectionOutlines();
 }
 
-
 function openSpeedMenu(e, deviceId, port, sub){
   closeSpeedMenu();
   e.preventDefault();
@@ -1564,35 +1730,39 @@ function openSpeedMenu(e, deviceId, port, sub){
   );
   if (portEl) outlineForSelection(portEl);
 
+  function defaultLabel(p, s){
+    if (typeof portLabelDefault === 'function') return portLabelDefault(p, s);
+    return 'Port ' + p + (s != null ? '/' + (s + 1) : '');
+  }
+
+  // Current link (if any) for this endpoint
+  var link = (typeof getLinkForEndpoint === 'function')
+    ? getLinkForEndpoint(deviceId, port, sub)
+    : null;
+
+  // Peer info (if linked)
+  var peer = null;
+  if (link) {
+    var aSub = (link.a.sub == null ? null : link.a.sub);
+    var bSub = (link.b.sub == null ? null : link.b.sub);
+    var subN = (sub == null ? null : sub);
+
+    if (link.a.deviceId === deviceId && link.a.port === port && aSub === subN) peer = link.b;
+    else peer = link.a;
+  }
+
   var curSpeed = speedFor(deviceId, port, sub) || '';
   var curVlan  = vlanFor(deviceId, port, sub);
-  var curVlanStr = (curVlan === '' ? '' : String(curVlan));
-
-  // ----- Build DEFAULT "Linked to" value (read-only behaviour) -----
-  var peer = getPeer(deviceId, port, sub);
+  var curVlanStr = (curVlan === '' || curVlan == null) ? '' : String(curVlan);
 
   var peerDev = null;
   var peerPortLabel = '';
-  var defaultLinkedTo = '';
-
   if (peer) {
     peerDev = deviceById(peer.deviceId);
-    if (peerDev) {
-      peerPortLabel =
-        (peerDev.portNames && peerDev.portNames[keyFor(peer.deviceId, peer.port, peer.sub)]) ||
-        ('Port ' + peer.port + (peer.sub != null ? '/' + (peer.sub + 1) : ''));
-      defaultLinkedTo = (peerDev.name || 'Unknown') + ' – ' + peerPortLabel;
-    }
-  } else if (isReservedPort(deviceId, port, sub)) {
-    // For reserved ports, show the reserved label as the "default"
-    defaultLinkedTo = reservedLabelFor(deviceId, port, sub) || 'Reserved';
-  } else {
-    defaultLinkedTo = '';
+    peerPortLabel =
+      (peerDev && peerDev.portNames && peerDev.portNames[keyFor(peer.deviceId, peer.port, peer.sub)]) ||
+      defaultLabel(peer.port, peer.sub);
   }
-
-  // If user has overridden it, show the override, otherwise default
-  var curLinkedTo = linkedToOverrideFor(deviceId, port, sub);
-  var linkedToValue = (curLinkedTo !== '' ? curLinkedTo : defaultLinkedTo);
 
   var div = document.createElement('div');
   div.className = 'speed-menu';
@@ -1636,81 +1806,145 @@ function openSpeedMenu(e, deviceId, port, sub){
                     'background:var(--bg);color:var(--ink)">' +
     '</div>' +
 
-    // --- LINKED TO (editable) + reset button ---
-    '<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:8px">' +
-      '<label for="__linkedToInput" style="margin:0;white-space:nowrap;min-width:70px">Linked to</label>' +
-      '<input id="__linkedToInput" type="text" placeholder="(auto)" ' +
-             'style="flex:1;min-width:160px;padding:4px 6px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)">' +
-      '<button id="__linkedToReset" type="button" title="Revert to automatic value" ' +
-             'style="padding:4px 6px;font-size:11px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;">↺</button>' +
-    '</div>' +
+    (peerDev ? (
+      '<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:8px">' +
+        '<label for="__linkedTo" style="margin:0;white-space:nowrap;min-width:70px">Linked To</label>' +
+        '<input id="__linkedTo" type="text" readonly ' +
+          'value="' + peerDev.name + ' – ' + peerPortLabel + '" ' +
+          'style="padding:4px 6px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);' +
+                 'display:inline-block;white-space:nowrap;overflow:hidden;" />' +
+      '</div>'
+    ) : '') +
 
-    '<div style="display:flex;gap:6px;justify-content:flex-end">' +
-      '<button id="__speedCancel" class="btn" type="button">Cancel</button>' +
-      '<button id="__speedSave"   class="btn" type="button" style="font-weight:700">Save</button>' +
-    '</div>';
+'<div style="display:flex;gap:6px;justify-content:space-between">' +
+
+  (peerDev
+    ? '<button id="__unlinkBtn" class="btn" type="button" ' +
+        'style="background:#b91c1c;border-color:#b91c1c;color:#fff;font-weight:700">Unlink</button>'
+    : '<div></div>'
+  ) +
+
+  '<div style="display:flex;gap:6px">' +
+    '<button id="__speedCancel" class="btn" type="button">Cancel</button>' +
+    '<button id="__speedSave"   class="btn" type="button" style="font-weight:700">Save</button>' +
+  '</div>' +
+
+'</div>';
 
   document.body.appendChild(div);
   __speedMenu = div;
 
+  // Auto-fit "Linked to" width (your existing behaviour)
+  (function() {
+    const inp = div.querySelector('#__linkedTo');
+    if (!inp) return;
+
+    const measurer = document.createElement('span');
+    measurer.style.cssText =
+      'position:absolute;visibility:hidden;white-space:nowrap;' +
+      'padding:4px 6px;font-size:12px;font-family:inherit;';
+    measurer.textContent = inp.value;
+
+    document.body.appendChild(measurer);
+
+    const baseWidth = measurer.offsetWidth;
+    const extra     = 16;
+    const minWidth  = 160;
+
+    inp.style.width = Math.max(minWidth, baseWidth + extra) + 'px';
+
+    document.body.removeChild(measurer);
+  })();
+
   div.addEventListener('mousedown', function(ev){ ev.stopPropagation(); }, { capture:true });
 
-  // Port rename (if enabled)
+  // Port name input + reset behaviour
   var nin = div.querySelector('#__nameInput');
-  if (nin) {
+  if (store.settings.enablePortRename && nin) {
     const dev = deviceById(deviceId);
+    const k = keyFor(deviceId, port, sub);
     const currentName =
-      (dev && dev.portNames && dev.portNames[keyFor(deviceId, port, sub)]) ||
-      ('Port ' + port + (sub != null ? '/' + (sub + 1) : ''));
+      (dev && dev.portNames && dev.portNames[k]) ||
+      defaultLabel(port, sub);
+
     nin.value = currentName;
   }
+
   const resetBtn = div.querySelector('#__nameReset');
   if (resetBtn && nin) {
-    resetBtn.addEventListener('click', () => {
-      const def = 'Port ' + port + (sub != null ? '/' + (sub + 1) : '');
-      nin.value = def;
+    resetBtn.addEventListener('click', function(){
+      // TRUE reset: delete stored override
+      var d = deviceById(deviceId);
+      if (d && d.portNames) {
+        delete d.portNames[keyFor(deviceId, port, sub)];
+        if (Object.keys(d.portNames).length === 0) delete d.portNames;
+        saveStore();
+      }
+      nin.value = defaultLabel(port, sub);
+      render();
     });
   }
 
-  // Fill current values
   var ain = div.querySelector('#__aliasInput');
   var sel = div.querySelector('#__speedSelect');
   var vin = div.querySelector('#__vlanInput');
-  var lnk = div.querySelector('#__linkedToInput');
 
   ain.value = aliasFor(deviceId, port, sub) || '';
   sel.value = curSpeed || '';
   vin.value = curVlanStr;
-  if (lnk) lnk.value = linkedToValue || '';
 
-  // Linked-to reset (confirm → revert to automatic)
-  var lnkReset = div.querySelector('#__linkedToReset');
-  if (lnkReset && lnk) {
-    lnkReset.addEventListener('click', function(){
-      if (!confirm('Revert "Linked to" back to the automatic value?')) return;
-      setLinkedToOverrideFor(deviceId, port, sub, '');
-      lnk.value = defaultLinkedTo || '';
-      // No render needed yet; saving happens on "Save" too, but this keeps state correct immediately.
+  // Hook up Unlink
+  var unlinkBtn = div.querySelector('#__unlinkBtn');
+  if (unlinkBtn && link && peerDev) {
+    unlinkBtn.addEventListener('click', function(){
+      var thisDev = deviceById(deviceId);
+      var thisName = thisDev ? thisDev.name : 'Unknown';
+      var thisPortLabel =
+        (thisDev && thisDev.portNames && thisDev.portNames[keyFor(deviceId, port, sub)]) ||
+        defaultLabel(port, sub);
+
+      var peerName = peerDev ? peerDev.name : 'Unknown';
+
+      var msg =
+        'Unlink connection?\n\n' +
+        thisName + ' — ' + thisPortLabel + '\n' +
+        '↔\n' +
+        peerName + ' — ' + peerPortLabel;
+
+      if (!confirm(msg)) return;
+
+      unlink(link.id);
+      closeSpeedMenu();
+      render();
     });
   }
 
-  // Position menu
   var x = e.clientX, y = e.clientY;
   var vw = window.innerWidth, vh = window.innerHeight;
-  var rw = 320, rh = 170;
+  var rw = 260, rh = 150;
   if (x + rw + 8 > vw) x = vw - rw - 8;
   if (y + rh + 8 > vh) y = vh - rh - 8;
   div.style.left = x + 'px';
   div.style.top  = y + 'px';
 
   function doSave(){
-    // Save port name (if enabled)
+    // Port rename (store ONLY real overrides)
     if (store.settings.enablePortRename && nin) {
-      var newName = nin.value.trim() || ('Port ' + port + (sub != null ? '/' + (sub + 1) : ''));
       var dev = deviceById(deviceId);
       if (dev) {
-        dev.portNames = dev.portNames || {};
-        dev.portNames[keyFor(deviceId, port, sub)] = newName;
+        var k = keyFor(deviceId, port, sub);
+        var val = (nin.value || '').trim();
+        var def = defaultLabel(port, sub);
+
+        if (!val || val === def) {
+          if (dev.portNames) {
+            delete dev.portNames[k];
+            if (Object.keys(dev.portNames).length === 0) delete dev.portNames;
+          }
+        } else {
+          dev.portNames = dev.portNames || {};
+          dev.portNames[k] = val;
+        }
       }
     }
 
@@ -1722,21 +1956,13 @@ function openSpeedMenu(e, deviceId, port, sub){
 
     // Speed + VLAN
     var speedVal = sel.value || '';
-    var vlanRaw  = vin.value.trim();
+    var vlanRaw  = (vin.value || '').trim();
     var vlanVal  = vlanRaw === '' ? '' : Math.max(1, Math.min(4094, Number(vlanRaw) || 0));
+
     setSpeedFor(deviceId, port, sub, speedVal);
     setVlanFor(deviceId, port, sub, vlanVal);
 
-    // Linked-to override (store only if different from default)
-    if (lnk) {
-      var v = lnk.value.trim();
-      if (!v || v === defaultLinkedTo) {
-        setLinkedToOverrideFor(deviceId, port, sub, '');
-      } else {
-        setLinkedToOverrideFor(deviceId, port, sub, v);
-      }
-    }
-
+    saveStore();
     render();
     closeSpeedMenu();
   }
@@ -1744,30 +1970,21 @@ function openSpeedMenu(e, deviceId, port, sub){
   div.querySelector('#__speedSave').addEventListener('click', doSave);
   div.querySelector('#__speedCancel').addEventListener('click', closeSpeedMenu);
 
-  // Enter/Escape convenience
   vin.addEventListener('keydown', function(ev){
     if (ev.key === 'Enter') doSave();
     if (ev.key === 'Escape') closeSpeedMenu();
   });
-  if (lnk) {
-    lnk.addEventListener('keydown', function(ev){
-      if (ev.key === 'Enter') doSave();
-      if (ev.key === 'Escape') closeSpeedMenu();
-    });
-  }
 
   setTimeout(function(){
     function onDoc(e2){
       if (__speedMenu && !__speedMenu.contains(e2.target)) closeSpeedMenu();
     }
-    function onEsc(e2){ if (e2.key==='Escape') closeSpeedMenu(); }
+    function onEsc(e2){ if (e2.key === 'Escape') closeSpeedMenu(); }
     document.addEventListener('mousedown', onDoc, { once:true, capture:true });
     document.addEventListener('keydown', onEsc, { once:true });
     window.addEventListener('wheel', closeSpeedMenu, { once:true, passive:true });
   }, 0);
 }
-
-
 
 /* ===================== PRINT ===================== */
 function openPrintSheet(includeTable){
@@ -2315,6 +2532,7 @@ document.getElementById('editDevSave').addEventListener('click', function() {
   currentEditDevice.color = editChosenColor;
   const speedSel = document.getElementById('editDevMaxSpeed');
   currentEditDevice.maxSpeed = speedSel ? speedSel.value || null : null;
+  recalcLinkSpeedsForDevice(currentEditDevice.id);
   saveStore(); render();
   closeEditDeviceModal();
 });
@@ -2399,88 +2617,258 @@ document.getElementById('deleteProfileBtn').addEventListener('click', function()
   saveStore(); refreshProfileSelect(); render();
 });
 
-/* Export profile (includes profileName) */
+/* ===================== EXPORT / IMPORT PROFILE (full-fidelity) ===================== */
+
+/* Export profile (exports EVERYTHING in state, with versioning) */
 document.getElementById('exportProfileBtn').addEventListener('click', function(){
-  var data = { profileName: store.current, devices: state.devices, links: state.links, portAliases: state.portAliases, reservedPorts: state.reservedPorts, exportedAt: new Date().toISOString() };
-  var blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
-  var url = URL.createObjectURL(blob); var a = document.createElement('a');
-  a.href = url; a.download = 'ethernet-profile-' + store.current.replace(/[^a-z0-9-_]+/gi,'_') + '.json';
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  // Full-fidelity export (supports all new fields + future ones)
+  var data = {
+    schema: 'eccm-profile',
+    schemaVersion: 2,
+    appVersion: '1.0.5',
+    profileName: store.current,
+    state: deepClone(state),
+    exportedAt: new Date().toISOString()
+  };
+
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'ethernet-profile-' + store.current.replace(/[^a-z0-9-_]+/gi,'_') + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 });
 
-/* Import profile (suggest name, switch active) */
-document.getElementById('importProfileBtn').addEventListener('click', function(){ document.getElementById('importProfileFile').click(); });
+
+/* Import profile (accepts both new schema + legacy exports) */
+document.getElementById('importProfileBtn').addEventListener('click', function(){
+  document.getElementById('importProfileFile').click();
+});
+
 document.getElementById('importProfileFile').addEventListener('change', function(e){
-  var file = e.target.files && e.target.files[0]; if(!file) return;
+  var file = e.target.files && e.target.files[0];
+  if(!file) return;
+
   var reader = new FileReader();
+
   reader.onload = function(){
     try{
       var parsed = JSON.parse(reader.result);
-      if(!Array.isArray(parsed.devices) || !Array.isArray(parsed.links)) throw new Error('Invalid schema');
-      parsed.portAliases = parsed.portAliases || {};
-      parsed.reservedPorts = parsed.reservedPorts || {};
 
-      var devices = parsed.devices.map(function(d){
-		  return {
-			id: d.id || uid(),
-			name: String(d.name || 'Unnamed'),
-			ports: Math.max(1, Math.min(512, Number(d.ports)||1)),
-			color: d.color || '#888',
-			forceFullRow: !!d.forceFullRow,
-			midWrapMode: (d.midWrapMode === 'twelve' ? 'twelve' : 'balanced'),
-			smallWrap: !!d.smallWrap,
-			dualLink: !!d.dualLink,
-			numbering: (d.numbering === 'column' || d.numbering === 'column-bt') ? d.numbering : 'row'
-		  };
-		});
+      // ---------- 1) Determine incoming state (new schema or legacy) ----------
+      var incomingState = null;
 
-      var idSet = Object.create(null); devices.forEach(function(d){ idSet[d.id]=true; });
-
-      var links = (parsed.links || []).map(function(L){
-        return { id: L.id || uid(),
-          a:{deviceId:String(L.a.deviceId), port:Number(L.a.port), sub:(L.a.sub==null?null:Number(L.a.sub))},
-          b:{deviceId:String(L.b.deviceId), port:Number(L.b.port), sub:(L.b.sub==null?null:Number(L.b.sub))}
+      // New schema: { schema, schemaVersion, profileName, state:{...} }
+      if (parsed && parsed.state && typeof parsed.state === 'object') {
+        incomingState = parsed.state;
+      } else {
+        // Legacy schema: { devices, links, portAliases, reservedPorts, ... }
+        incomingState = {
+          devices: parsed.devices,
+          links: parsed.links,
+          portAliases: parsed.portAliases,
+          reservedPorts: parsed.reservedPorts,
+          portSpeeds: parsed.portSpeeds,
+          portVlans: parsed.portVlans,
+          portLinkedToNames: parsed.portLinkedToNames
         };
-      }).filter(function(L){ return idSet[L.a.deviceId] && idSet[L.b.deviceId] && L.a.port>=1 && L.b.port>=1; });
+      }
 
-      var suggested = (parsed.profileName || '').toString().trim() || ('Imported ' + new Date().toLocaleString());
+      // Basic validation
+      if(!incomingState || !Array.isArray(incomingState.devices) || !Array.isArray(incomingState.links)){
+        throw new Error('Invalid schema (missing devices/links).');
+      }
+
+      // ---------- 2) Normalise + clamp ----------
+      normalizeState(incomingState);
+
+      // Respect current app setting (if available) for max ports
+      var maxPorts = (typeof getMaxPortsSetting === 'function') ? getMaxPortsSetting() : 512;
+
+      incomingState.devices = incomingState.devices.map(function(d){
+        // Keep all fields we know + preserve any extras by copying d wholesale
+        var out = Object.assign({}, d);
+
+        out.id = d.id || uid();
+        out.name = String(d.name || 'Unnamed');
+        out.color = d.color || '#888';
+
+        out.ports = Math.max(1, Math.min(maxPorts, Number(d.ports) || 1));
+
+        // Layout fields
+        out.forceFullRow = !!d.forceFullRow;
+        out.midWrapMode  = (d.midWrapMode === 'twelve') ? 'twelve' : 'balanced';
+        out.smallWrap    = !!d.smallWrap;
+        out.dualLink     = !!d.dualLink;
+        out.numbering    = (d.numbering === 'column') ? 'column' : 'row';
+
+        // Per-device fields
+        out.maxSpeed = (d.maxSpeed == null || d.maxSpeed === '') ? null : String(d.maxSpeed);
+        out.portNames = (d.portNames && typeof d.portNames === 'object') ? d.portNames : {};
+
+        return out;
+      });
+
+      // Rebuild id set for link filtering
+      var idSet = Object.create(null);
+      incomingState.devices.forEach(function(d){ idSet[String(d.id)] = true; });
+
+      incomingState.links = (incomingState.links || []).map(function(L){
+        return {
+          id: L.id || uid(),
+          a: {
+            deviceId: String(L.a && L.a.deviceId),
+            port: Number(L.a && L.a.port),
+            sub: (L.a && L.a.sub == null) ? null : Number(L.a.sub)
+          },
+          b: {
+            deviceId: String(L.b && L.b.deviceId),
+            port: Number(L.b && L.b.port),
+            sub: (L.b && L.b.sub == null) ? null : Number(L.b.sub)
+          }
+        };
+      }).filter(function(L){
+        // Must reference known devices + valid port numbers
+        return (
+          idSet[L.a.deviceId] && idSet[L.b.deviceId] &&
+          L.a.port >= 1 && L.b.port >= 1
+        );
+      });
+
+      // Ensure maps exist (import could be missing them)
+      incomingState.portAliases = incomingState.portAliases || {};
+      incomingState.reservedPorts = incomingState.reservedPorts || {};
+      incomingState.portSpeeds = incomingState.portSpeeds || {};
+      incomingState.portVlans  = incomingState.portVlans  || {};
+      incomingState.portLinkedToNames = incomingState.portLinkedToNames || {};
+
+      // ---------- 3) Save under user-chosen profile name ----------
+      var suggested =
+        (parsed.profileName || '').toString().trim() ||
+        ('Imported ' + new Date().toLocaleString());
+
       var name = prompt('Name for imported profile:', suggested);
-      if(!name || !name.trim()) return; name = name.trim();
-      if(store.profiles[name]){ alert('A profile with that name already exists.'); return; }
+      if(!name || !name.trim()) return;
+      name = name.trim();
 
-      store.profiles[name] = { devices: devices, links: links, portAliases: parsed.portAliases, reservedPorts: parsed.reservedPorts };
+      if(store.profiles[name]){
+        alert('A profile with that name already exists.');
+        return;
+      }
+
+      store.profiles[name] = incomingState;
+
       saveStore();
       refreshProfileSelect();
       switchProfile(name);
-    }catch(err){ alert('Import failed: ' + err.message); }
-    finally{ e.target.value=''; }
+
+    }catch(err){
+      alert('Import failed: ' + err.message);
+    }finally{
+      e.target.value = '';
+    }
   };
+
   reader.readAsText(file);
 });
 
 /* ===================== BACKUP / RESTORE (all profiles) ===================== */
 document.getElementById('backupAllBtn').addEventListener('click', function(){
-  var blob = new Blob([JSON.stringify(store,null,2)], {type:'application/json'});
-  var url = URL.createObjectURL(blob); var a = document.createElement('a');
-  a.href = url; a.download = 'ethernet-all-profiles-backup.json';
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  // Full-store backup (all profiles + settings + current profile)
+  var payload = {
+    schema: 'eccm-backup',
+    schemaVersion: 2,
+    appVersion: '1.0.5',
+    exportedAt: new Date().toISOString(),
+    store: deepClone(store)
+  };
+
+  var blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'ethernet-all-profiles-backup.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 });
+
 document.getElementById('restoreAllBtn').addEventListener('click', function(){
   document.getElementById('restoreAllFile').click();
 });
+
 document.getElementById('restoreAllFile').addEventListener('change', function(e){
-  var file = e.target.files && e.target.files[0]; if(!file) return;
+  var file = e.target.files && e.target.files[0];
+  if(!file) return;
+
   var reader = new FileReader();
+
   reader.onload = function(){
     try{
       var parsed = JSON.parse(reader.result);
-      if(!parsed || !parsed.current || !parsed.profiles) throw new Error('Invalid backup file (missing profiles).');
-      Object.keys(parsed.profiles).forEach(function(name){ normalizeState(parsed.profiles[name]); });
-      store = parsed; state = store.profiles[store.current] || deepClone(defaultState);
-      saveStore(); refreshProfileSelect(); render();
-    }catch(err){ alert('Restore failed: ' + err.message); }
-    finally{ e.target.value=''; }
+
+      // Accept NEW backups: { schema:'eccm-backup', store:{...} }
+      // Accept LEGACY backups: raw store object { current, profiles, ... }
+      var incomingStore = null;
+
+      if (parsed && parsed.schema === 'eccm-backup' && parsed.store && typeof parsed.store === 'object') {
+        incomingStore = parsed.store;
+      } else if (parsed && parsed.current && parsed.profiles) {
+        // legacy format: store dump
+        incomingStore = parsed;
+      } else if (parsed && parsed.schema === 'eccm-profile') {
+        throw new Error('This file is a single-profile export. Use "Import Profile", not "Restore All".');
+      } else {
+        throw new Error('Invalid backup file (unrecognised schema).');
+      }
+
+      if(!incomingStore.profiles || typeof incomingStore.profiles !== 'object'){
+        throw new Error('Invalid backup file (missing profiles).');
+      }
+
+      // Ensure settings exist + defaults
+      if (!incomingStore.settings) incomingStore.settings = { maxPorts: 512, enablePortRename: false };
+      if (incomingStore.settings.maxPorts == null) incomingStore.settings.maxPorts = 512;
+      if (incomingStore.settings.enablePortRename === undefined) incomingStore.settings.enablePortRename = false;
+
+      // Normalise every profile (this is where all the new fields are preserved)
+      Object.keys(incomingStore.profiles).forEach(function(name){
+        normalizeState(incomingStore.profiles[name]);
+      });
+
+      // Ensure "current" points to an existing profile
+      if (!incomingStore.current || !incomingStore.profiles[incomingStore.current]) {
+        var names = Object.keys(incomingStore.profiles);
+        incomingStore.current = names.length ? names[0] : 'Default';
+      }
+
+      // If somehow profiles are empty, create at least one
+      if (Object.keys(incomingStore.profiles).length === 0) {
+        incomingStore.profiles = { 'Default': deepClone(defaultState) };
+        incomingStore.current = 'Default';
+        normalizeState(incomingStore.profiles['Default']);
+      }
+
+      // Commit
+      store = incomingStore;
+      state = store.profiles[store.current] || deepClone(defaultState);
+
+      saveStore();
+      refreshProfileSelect();
+      applySettings();
+      render();
+
+    }catch(err){
+      alert('Restore failed: ' + err.message);
+    }finally{
+      e.target.value = '';
+    }
   };
+
   reader.readAsText(file);
 });
 
@@ -2511,7 +2899,12 @@ document.addEventListener('click', function(e){
 
 /* ===================== SETTINGS ===================== */
 if (!store.settings)
-  store.settings = { maxPorts: 512, enablePortRename: false };
+  store.settings = { 
+    maxPorts: 512, 
+    enablePortRename: false,
+    portTermMode: 'port',
+    portTermCustom: ''
+  };
 
 if (store.settings.enablePortRename === undefined)
   store.settings.enablePortRename = false;
@@ -2526,22 +2919,62 @@ function saveSettings() {
 }
 
 function applySettings() {
+  // Ensure settings object exists (safe fallback)
+  if (!store.settings) store.settings = {};
+
+  // Defaults for new setting (don’t overwrite existing)
+  if (!('portTermMode' in store.settings)) store.settings.portTermMode = 'port';
+  if (!('portTermCustom' in store.settings)) store.settings.portTermCustom = '';
+
   const maxPorts = getMaxPortsSetting();
 
+  // Device "Ports" input (Add Device modal)
   const devPorts = document.getElementById('devPorts');
   if (devPorts) {
     devPorts.max = String(maxPorts);
     if (Number(devPorts.value) > maxPorts) devPorts.value = String(maxPorts);
   }
 
+  // Settings: maxPorts
   const maxPortsInput = document.getElementById('maxPorts');
   if (maxPortsInput) {
     maxPortsInput.value = String(maxPorts);
   }
 
+  // Settings: enablePortRename
   const enablePortRenameEl = document.getElementById('enablePortRename');
   if (enablePortRenameEl) {
     enablePortRenameEl.checked = !!store.settings.enablePortRename;
+  }
+
+  // =========================
+  // Settings: Port label term
+  // =========================
+  const portTermModeEl = document.getElementById('portTermMode');
+  const portTermCustomEl = document.getElementById('portTermCustom');
+  const portTermCustomRow = document.getElementById('portTermCustomRow');
+
+  if (portTermModeEl) {
+    // Set current value
+    portTermModeEl.value = store.settings.portTermMode || 'port';
+
+    // Bind change listener ONCE
+    if (!portTermModeEl.dataset.bound) {
+      portTermModeEl.dataset.bound = '1';
+      portTermModeEl.addEventListener('change', () => {
+        const isCustom = portTermModeEl.value === 'custom';
+        if (portTermCustomRow) portTermCustomRow.style.display = isCustom ? 'flex' : 'none';
+      });
+    }
+  }
+
+  if (portTermCustomEl) {
+    portTermCustomEl.value = store.settings.portTermCustom || '';
+  }
+
+  if (portTermCustomRow) {
+    const mode = (portTermModeEl && portTermModeEl.value) || store.settings.portTermMode || 'port';
+    portTermCustomRow.style.display = (mode === 'custom') ? 'flex' : 'none';
   }
 }
 
@@ -2556,7 +2989,13 @@ if (saveSettingsBtn && maxPortsInput && enablePortRenameEl) {
     const val = Math.max(1, Number(maxPortsInput.value) || 9999);
     store.settings.maxPorts = val;
     store.settings.enablePortRename = !!enablePortRenameEl.checked;
+	const portTermModeEl = document.getElementById('portTermMode');
+	const portTermCustomEl = document.getElementById('portTermCustom');
+
+	store.settings.portTermMode = portTermModeEl ? portTermModeEl.value : 'port';
+	store.settings.portTermCustom = portTermCustomEl ? portTermCustomEl.value.trim() : '';
     saveSettings();
+	render();
 	
 	const modal = document.getElementById('settingsModal');
     if (modal) {
@@ -2605,6 +3044,8 @@ function initProfilesUI(){ refreshProfileSelect(); }
 initProfilesUI();
 render();
 updateUniformPortWidth();
+
+
 
 
 (function(){
