@@ -30,10 +30,16 @@ button,.btn{background:#11151d;color:var(--ink);border:1px solid var(--line);pad
 button:hover{border-color:#2a2f3b}
 .btn-danger{border-color:#3b2222}
 .dev-rows{display:flex;flex-direction:column;gap:12px}
-.dev-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.dev-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 12px;
+}
 .device-wrap{display:block;width:100%}
 .device-wrap.full{grid-column:1/-1}
-.device{background:#131722;border:1px solid var(--line);border-radius:12px;padding:12px;position:relative;width:100%}
+.device-wrap.half {grid-column: span 2}
+.device-wrap.quarter {grid-column: span 1;--portW6: 109px;}
+.device{background:#131722;border:1px solid var(--line);border-radius:12px;padding:12px;position:relative;width:100%;box-shadow: inset 0 0 0 2px var(--device-border, transparent);}
 .device-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
 .device-title{font-size:15px;font-weight:650;display:flex;align-items:center;gap:8px}
 .swatch{width:12px;height:12px;border-radius:3px;border:1px solid #0006;display:inline-block}
@@ -230,10 +236,11 @@ html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-col
 <body>
 <header>
   <h1>Ethernet Cable Connection Manager</h1>
-  <span class="badge">1.0.6</span>
+  <span class="badge">1.0.7</span>
   <div style="margin-left:auto;display:flex;gap:8px">
 	<button id="btnSettings" class="btn">Settings</button>
     <button id="printSheet">Print layout</button>
+	<button id="exportDrawIO">Export draw.io</button>
   </div>
 </header>
 
@@ -405,9 +412,10 @@ html.theme-bright .speed-menu select{  background:#fff;  color:#111;  border-col
     <div class="row">
       <label style="min-width:110px">Row width</label>
       <select id="layoutFullRow">
-        <option value="auto">Auto (follow rules)</option>
-        <option value="full">Force full row</option>
-      </select>
+		  <option value="auto">Auto (follow rules)</option>
+		  <option value="full">Force full row</option>
+		  <option value="half">Force half width</option>
+		</select>
     </div>
     <div class="row" id="optMidWrap">
       <label style="min-width:110px">13–24 ports</label>
@@ -546,6 +554,7 @@ function normalizeState(st){
     if (d.smallWrap === undefined) d.smallWrap = false;
     if (d.dualLink === undefined) d.dualLink = false;
     if (d.numbering === undefined) d.numbering = 'row';
+	if (d.widthMode === undefined) d.widthMode = 'half';
   });
 }
 function saveStore(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){} }
@@ -843,11 +852,31 @@ function clearSelectionOutlines(){
 function outlineForSelection(node){
   node.classList.add('selected');
 
-  var isBright = document.documentElement.classList.contains('theme-bright');
-  var edgeClr = isBright ? '#000' : '#fff';
-  var glowClr = isBright ? 'rgba(0,0,0,.38)' : 'rgba(255,255,255,.38)';
+  // Get actual background colour of the port
+  const bg = window.getComputedStyle(node).backgroundColor;
+
+  // Convert rgb(...) → hex
+  function rgbToHex(rgb){
+    const m = rgb.match(/\d+/g);
+    if (!m) return '#000';
+    return "#" + m.slice(0,3).map(x => {
+      const h = parseInt(x).toString(16);
+      return h.length === 1 ? "0" + h : h;
+    }).join('');
+  }
+
+  const hex = rgbToHex(bg);
+
+  // Use your EXISTING brightness logic
+  const edgeClr = bestTextColorFor(hex);
+
+  // Slight glow (match tone)
+  const glowClr = edgeClr === '#000'
+    ? 'rgba(0,0,0,.35)'
+    : 'rgba(255,255,255,.35)';
 
   var o = HI_OUTLINE, r = HI_RING, b = HI_BLUR;
+
   node.style.boxShadow =
     '0 0 0 ' + o + 'px ' + edgeClr + ',' +
     'inset 0 0 0 ' + r + 'px ' + edgeClr + ',' +
@@ -926,10 +955,10 @@ window.addEventListener('resize', function(){ clearTimeout(__pw_timer); __pw_tim
 /* ===================== LAYOUT RULES ===================== */
 function isFullWidthDevice(d){
   if (d.forceFullRow) return true;
-  if ((d.ports||1) >= 13) return true;
-  if ((d.ports||1) >= 7 && !d.smallWrap) return true;
+  if ((d.ports || 1) >= 13) return true;
   return false;
 }
+
 function splitPortsIntoRows(n, dev){
   if (n === 12 && dev.smallWrap) return [6, 6];
 
@@ -980,32 +1009,85 @@ function applyPeerScrolling() {
   });
 }
 
-
 function renderDevices(){
   var host = $('#devRows'); host.innerHTML='';
-  if(!state.devices.length){ host.appendChild(el('div',{class:'muted'},'No devices yet — add one on the left.')); updateUniformPortWidth(); return; }
+  if(!state.devices.length){
+    host.appendChild(el('div',{class:'muted'},'No devices yet — add one on the left.'));
+    updateUniformPortWidth();
+    return;
+  }
 
-  var i=0;
+  var i = 0;
+
+  function getUnits(cls){
+    if (cls === 'full') return 4;
+    if (cls === 'half') return 2;
+    return 1; // quarter
+  }
+
   while(i < state.devices.length){
+
     var rowEl = el('div',{class:'dev-row'});
-    var d = state.devices[i];
-    if (isFullWidthDevice(d)){
-      rowEl.appendChild(renderDeviceWrap(d, true)); i += 1;
-    } else {
-      rowEl.appendChild(renderDeviceWrap(d, false));
-      if (i+1 < state.devices.length && !isFullWidthDevice(state.devices[i+1])){
-        rowEl.appendChild(renderDeviceWrap(state.devices[i+1], false)); i += 2;
-      } else {
-        rowEl.appendChild(el('div',{class:'device-wrap'}, el('div',{class:'device', style:'visibility:hidden'}, ' '))); i += 1;
-      }
+    var used = 0;
+
+    while(i < state.devices.length){
+
+      var d = state.devices[i];
+      var cls = getDeviceWidthClass(d);
+      var units = getUnits(cls);
+
+      // if device doesn't fit, move to next row
+      if (used + units > 4) break;
+
+      rowEl.appendChild(renderDeviceWrap(d, cls === 'full'));
+      used += units;
+      i++;
+
+      if (used === 4) break;
     }
+
+    // fill remaining space with invisible fillers
+    while (used < 4){
+      var fillerUnits = 1;
+      rowEl.appendChild(
+        el('div',{class:'device-wrap'},
+          el('div',{class:'device', style:'visibility:hidden'}, ' ')
+        )
+      );
+      used += fillerUnits;
+    }
+
     host.appendChild(rowEl);
   }
+
   updateUniformPortWidth();
 }
 
+
+function getDeviceWidthClass(d){
+
+  // NEW PRIORITY OVERRIDE FROM UI
+  if (d.widthMode === 'full') return 'full';
+  if (d.widthMode === 'half') return 'half';
+
+  // existing force override still respected
+  if (d.forceFullRow) return 'full';
+
+  var p = d.ports || 0;
+
+  if (d.widthMode === 'quarter') return 'quarter';
+
+  if (p <= 3) return 'quarter';
+  if (p <= 12) return 'half';
+
+  return 'full';
+}
+
 function renderDeviceWrap(d, fullWidth){
-  var wrap = el('div',{class:'device-wrap ' + (fullWidth ? 'full' : ''), dataset:{id:d.id}});
+	var wrap = el('div',{
+	  class:'device-wrap ' + getDeviceWidthClass(d),
+	  dataset:{id:d.id}
+	});
   wrap.draggable = true;
 
   wrap.addEventListener('dragstart', function(e){
@@ -1227,12 +1309,22 @@ var defaultPeerText =
     ? (reserved || 'Reserved')
     : (
         peer && peerDev
-          ? (peerDev.name + ' - ' +
-             (
-               (peerDev.portNames && peerDev.portNames[keyFor(peer.deviceId, peerPort, peer.sub)]) ||
-               portLabelDefault(peerPort, peer.sub)
-             )
-            )
+          ? (function(){
+              var portName =
+                (peerDev.portNames && peerDev.portNames[keyFor(peer.deviceId, peerPort, peer.sub)]) ||
+                portLabelDefault(peerPort, peer.sub);
+
+              var peerAlias = aliasFor(peer.deviceId, peerPort, peer.sub);
+
+              var base = peerDev.name + ' - ' + portName;
+
+              // Append alias if present
+              if (peerAlias && peerAlias.trim() !== '') {
+                base += ' - <i>' + peerAlias + '</i>';
+              }
+
+              return base;
+            })()
           : ''
       );
 
@@ -1245,10 +1337,12 @@ var peerText = (peerOverride !== '' ? peerOverride : defaultPeerText);
 var peerEl = el(
   'div',
   { class: 'peer' },
-  el('span', {}, peerText)
+  (function(){
+    var span = document.createElement('span');
+    span.innerHTML = peerText;
+    return span;
+  })()
 );
-
-
 
   var node = el('div',{
       class:'port'+(linked?' connected':'')+(reserved?' reserved':''), 
@@ -1418,7 +1512,11 @@ var peerEl = el(
 	  portsContainer.appendChild(row);
 	});
 
-  var card = el('div',{class:'device', id:'dev-'+d.id}, head, meta, portsContainer);
+  var card = el('div',{
+  class:'device',
+  id:'dev-'+d.id,
+  style:'--device-border:' + (d.color || '#888')
+}, head, meta, portsContainer);
   wrap.appendChild(card);
   return wrap;
 }
@@ -2105,7 +2203,183 @@ function openPrintSheet(includeTable){
 };
 }
 
+/* ===================== DRAW.IO EXPORT ===================== */
 
+/* --- Escape XML safely --- */
+function escapeXml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/* --- Safe IDs for draw.io --- */
+function sanitizeId(id) {
+  return String(id).replace(/[^a-zA-Z0-9_]/g, "_");
+}
+
+/* --- Build link label (ports + speed + VLAN) --- */
+function buildLinkLabel(L) {
+  function portLabel(ep) {
+    let base = ep.port;
+    if (ep.sub != null) base += "/" + (ep.sub + 1);
+    return base;
+  }
+
+  const a = portLabel(L.a);
+  const b = portLabel(L.b);
+
+  const speed = speedFor(L.a.deviceId, L.a.port, L.a.sub);
+  const vlan  = vlanFor(L.a.deviceId, L.a.port, L.a.sub);
+
+  let parts = [`${a} ⇄ ${b}`];
+
+  if (speed) parts.push(speed);
+  if (vlan) parts.push(`VLAN ${vlan}`);
+
+  return parts.join(" | ");
+}
+
+/* --- Collect reserved ports for device --- */
+function getReservedPortsForDevice(deviceId) {
+  const out = [];
+
+  Object.keys(state.reservedPorts || {}).forEach(k => {
+    const [devId, port, sub] = k.split(":");
+    if (devId !== deviceId) return;
+
+    const label = state.reservedPorts[k] || "Reserved";
+    const subText = sub ? "/" + (Number(sub) + 1) : "";
+
+    out.push(`Port ${port}${subText} - ${label}`);
+  });
+
+  return out;
+}
+
+/* --- Build device label with proper line breaks --- */
+function buildDeviceLabel(d) {
+  const reserved = getReservedPortsForDevice(d.id);
+
+  let lines = [];
+
+  lines.push(d.name || "Unnamed");
+
+  if (reserved.length) {
+    lines.push("------------------");
+    reserved.forEach(r => lines.push(r));
+  }
+
+  // 1. escape each line individually
+  const safeLines = lines.map(l => escapeXml(l));
+
+  // 2. THEN join with &#xa; (DO NOT escape after this)
+  return safeLines.join("&#xa;");
+}
+
+/* --- Generate draw.io XML --- */
+function buildDrawIOXml() {
+  let xml = [];
+
+  xml.push(`<mxGraphModel dx="1000" dy="600" grid="1" gridSize="10">`);
+  xml.push(`<root>`);
+  xml.push(`<mxCell id="0"/>`);
+  xml.push(`<mxCell id="1" parent="0"/>`);
+
+  /* ---------- DEVICES ---------- */
+  state.devices.forEach((d, i) => {
+    const x = (i % 2) * 350 + 100;
+    const y = Math.floor(i / 2) * 200 + 100;
+
+    const label = buildDeviceLabel(d);
+
+    const bg = d.color || "#888";
+    const textColor = bestTextColorFor(bg);
+
+    const style = `
+      rounded=1;
+      whiteSpace=wrap;
+      html=1;
+      fillColor=${bg};
+      fontColor=${textColor};
+      spacing=6;
+    `.replace(/\s+/g, ""); // clean formatting
+
+    xml.push(`
+      <mxCell id="${sanitizeId(d.id)}"
+        value="${label}"
+        style="${style}"
+        vertex="1" parent="1">
+        <mxGeometry x="${x}" y="${y}" width="200" height="120" as="geometry"/>
+      </mxCell>
+    `);
+  });
+
+	/* ---------- LINKS (PORT-LEVEL EXPORT) ---------- */
+	state.devices.forEach(d => {
+	  for (let p = 1; p <= (d.ports || 0); p++) {
+
+		const subs = d.dualLink ? [0, 1] : [null];
+
+		subs.forEach(sub => {
+		  const link = linkForPort(d.id, p, sub);
+		  if (!link) return;
+
+		  const isA = (
+			link.a.deviceId === d.id &&
+			link.a.port === p &&
+			(link.a.sub ?? null) === sub
+		  );
+
+		  if (!isA) return; // avoid duplicates
+
+		  const label = escapeXml(buildLinkLabel(link));
+
+		  xml.push(`
+			<mxCell id="${sanitizeId(link.id + "_" + d.id + "_" + p + "_" + (sub ?? ''))}"
+			  value="${label}"
+			  style="endArrow=classic;html=1;"
+			  edge="1" parent="1"
+			  source="${sanitizeId(link.a.deviceId)}"
+			  target="${sanitizeId(link.b.deviceId)}">
+			  <mxGeometry relative="1" as="geometry"/>
+			</mxCell>
+		  `);
+		});
+	  }
+	});
+
+  xml.push(`</root>`);
+  xml.push(`</mxGraphModel>`);
+
+  return xml.join("\n");
+}
+
+/* --- Main export function --- */
+function exportDrawIO() {
+  try {
+    const xml = buildDrawIOXml();
+
+    const fileName = (store.current || "network")
+      .replace(/[^a-z0-9-_]+/gi, "_") + ".drawio";
+
+    const blob = new Blob([xml], { type: "application/xml" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+
+    URL.revokeObjectURL(url);
+
+  } catch (e) {
+    console.error("DRAW.IO EXPORT ERROR:", e);
+    alert("Export failed - check console");
+  }
+}
 
 /* ===================== ORCHESTRATION ===================== */
 function render(){ renderDevices(); applyPeerScrolling(); renderConnections(); }
@@ -2381,7 +2655,9 @@ function openLayoutModal(deviceId){
 
 
   nameEl.textContent = d.name + ' ('+d.ports+' ports)';
-  selFull.value = d.forceFullRow ? 'full' : 'auto';
+  selFull.value = (d.widthMode === 'full') ? 'full'
+              : (d.widthMode === 'half') ? 'half'
+              : 'auto';
   selMid.value = (d.midWrapMode === 'twelve') ? 'twelve' : 'balanced';
   selSmall.value = d.smallWrap ? 'split' : 'single';
   selDual.value = d.dualLink ? 'on' : 'off';
@@ -2392,7 +2668,16 @@ function openLayoutModal(deviceId){
 
   $('#layoutCancel').onclick = function(){ backdrop.style.display='none'; };
   $('#layoutSave').onclick = function(){
-    d.forceFullRow = (selFull.value === 'full');
+		if (selFull.value === 'full') {
+		  d.widthMode = 'full';
+		  d.forceFullRow = true;
+		} else if (selFull.value === 'half') {
+		  d.widthMode = 'half';
+		  d.forceFullRow = false;
+		} else {
+		  d.widthMode = 'auto';
+		  d.forceFullRow = false;
+		}
     if (d.ports>=13 && d.ports<=24) d.midWrapMode = (selMid.value === 'twelve') ? 'twelve' : 'balanced';
     if (d.ports>=7  && d.ports<=12) d.smallWrap   = (selSmall.value === 'split');
     d.dualLink = (selDual.value === 'on');
@@ -2625,7 +2910,7 @@ document.getElementById('exportProfileBtn').addEventListener('click', function()
   var data = {
     schema: 'eccm-profile',
     schemaVersion: 2,
-    appVersion: '1.0.5',
+    appVersion: '1.0.7',
     profileName: store.current,
     state: deepClone(state),
     exportedAt: new Date().toISOString()
@@ -2781,7 +3066,7 @@ document.getElementById('backupAllBtn').addEventListener('click', function(){
   var payload = {
     schema: 'eccm-backup',
     schemaVersion: 2,
-    appVersion: '1.0.5',
+    appVersion: '1.0.7',
     exportedAt: new Date().toISOString(),
     store: deepClone(store)
   };
@@ -2875,6 +3160,7 @@ document.getElementById('restoreAllFile').addEventListener('change', function(e)
 /* ===================== SEARCH + PRINT ===================== */
 document.getElementById('searchBox').addEventListener('input', renderConnections);
 document.getElementById('printSheet').addEventListener('click', function(){ openPrintSheet(true); });
+document.getElementById('exportDrawIO').addEventListener('click', exportDrawIO);
 
 /* ===================== CLEAR ALL (current profile only) ===================== */
 document.getElementById('clearAll').addEventListener('click', function(){
