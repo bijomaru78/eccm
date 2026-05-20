@@ -1,0 +1,9 @@
+services:
+  web:
+    image: node:20-alpine
+    working_dir: /app/docker
+    ports:
+      - "3035:3035"
+    volumes:
+      - ./:/app
+    command: sh -c "npm install && node app.js"

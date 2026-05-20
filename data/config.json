@@ -1,0 +1,18 @@
+{
+  "current": "Default",
+  "profiles": {
+    "Default": {
+      "devices": [],
+      "links": [],
+      "portAliases": {},
+      "reservedPorts": {},
+      "portSpeeds": {},
+      "portVlans": {},
+      "portLinkedTo": {}
+    }
+  },
+  "settings": {
+    "maxPorts": 512,
+    "enablePortRename": false
+  }
+}
